@@ -1,4 +1,4 @@
-# Odyssee Kids
+# Odyssée Kids
 
 Local-first interactive encyclopedia for children built with Vue 3 + Tauri.
 
