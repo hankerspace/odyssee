@@ -1,0 +1,118 @@
+{
+  "app": {
+    "title": "Odyssée Kids",
+    "subtitle": "Encyclopédie enfant hors ligne alimentée par une IA locale",
+    "language": "Langue",
+    "levels": {
+      "domains": "Roue des domaines",
+      "topics": "Exploration thématique",
+      "article": "Fiche encyclopédique"
+    },
+    "actions": {
+      "back": "Retour",
+      "goHome": "Accueil",
+      "generateImage": "Illustration générée",
+      "curiosityFeed": "Fil de curiosité"
+    },
+    "system": {
+      "profile": "Profil système",
+      "hardware": "Matériel détecté",
+      "accelerator": "Accélérateur",
+      "performance": "Performance attendue",
+      "modelPath": "Stockage des modèles",
+      "promptGuard": "Garde de prompt",
+      "styleWrapper": "Style d'illustration"
+    }
+  },
+  "domains": {
+    "nature": {
+      "name": "Nature",
+      "welcomePhrases": [
+        "Bienvenue explorateur ! La nature est pleine de vie surprenante.",
+        "Découvrons ensemble des écosystèmes fascinants.",
+        "Prépare-toi à rencontrer des êtres vivants incroyables."
+      ],
+      "sections": {
+        "animals": "Animaux",
+        "oceans": "Océans",
+        "forests": "Forêts"
+      }
+    },
+    "space": {
+      "name": "Espace",
+      "welcomePhrases": [
+        "Bienvenue astronaute ! L'espace est immense et passionnant.",
+        "Voyageons parmi les planètes et les étoiles.",
+        "Prêt pour une aventure cosmique ?"
+      ],
+      "sections": {
+        "planets": "Planètes",
+        "missions": "Missions",
+        "stars": "Étoiles"
+      }
+    },
+    "history": {
+      "name": "Histoire",
+      "welcomePhrases": [
+        "Bienvenue voyageur du temps !",
+        "L'histoire nous aide à comprendre les peuples du passé.",
+        "Partons à la rencontre des civilisations et des inventeurs."
+      ],
+      "sections": {
+        "civilizations": "Civilisations",
+        "inventions": "Inventions",
+        "explorers": "Explorateurs"
+      }
+    },
+    "technology": {
+      "name": "Technologie",
+      "welcomePhrases": [
+        "Bienvenue constructeur ! La technologie résout des problèmes réels.",
+        "Explorons des inventions, des robots à l'énergie propre.",
+        "Prêt à découvrir des machines intelligentes ?"
+      ],
+      "sections": {
+        "robots": "Robots",
+        "energy": "Énergie",
+        "transport": "Transport"
+      }
+    },
+    "human-body": {
+      "name": "Corps humain",
+      "welcomePhrases": [
+        "Bienvenue scientifique ! Ton corps est une merveille vivante.",
+        "Explorons les os, les sens et le cerveau.",
+        "Prêt à apprendre comment fonctionne ton corps ?"
+      ],
+      "sections": {
+        "skeleton": "Squelette",
+        "brain": "Cerveau",
+        "senses": "Sens"
+      }
+    },
+    "arts": {
+      "name": "Arts",
+      "welcomePhrases": [
+        "Bienvenue créateur ! L'art raconte des histoires sans limites.",
+        "Découvrons les sons, les couleurs et les formes.",
+        "Prêt à imaginer et à créer ?"
+      ],
+      "sections": {
+        "music": "Musique",
+        "painting": "Peinture",
+        "sculpture": "Sculpture"
+      }
+    }
+  },
+  "articles": {
+    "arctic-fox": {
+      "title": "Renard polaire",
+      "summary": "Le renard polaire a une fourrure épaisse et de petites oreilles qui conservent la chaleur.",
+      "questions": [
+        "Comment reste-t-il au chaud en hiver ?",
+        "Pourquoi la couleur de son pelage change-t-elle ?",
+        "Que mange-t-il dans la toundra ?"
+      ]
+    }
+  }
+}
