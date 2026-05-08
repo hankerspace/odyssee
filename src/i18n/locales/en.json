@@ -1,0 +1,271 @@
+{
+  "app": {
+    "title": "Odyssée Kids",
+    "subtitle": "Offline children encyclopedia powered by local AI",
+    "language": "Language",
+    "levels": {
+      "domains": "Domain Wheel",
+      "topics": "Theme Explorer",
+      "article": "Encyclopedia Card"
+    },
+    "actions": {
+      "back": "Back",
+      "goHome": "Home",
+      "generateImage": "Generated Illustration",
+      "curiosityFeed": "Curiosity Feed"
+    },
+    "system": {
+      "profile": "System Profile",
+      "hardware": "Detected hardware",
+      "accelerator": "Accelerator",
+      "performance": "Expected performance",
+      "modelPath": "Model storage",
+      "promptGuard": "Prompt Guard",
+      "styleWrapper": "Style Wrapper"
+    }
+  },
+  "domains": {
+    "nature": {
+      "name": "Nature",
+      "welcomePhrases": [
+        "Welcome explorer! Nature is full of surprising life.",
+        "Let us discover amazing ecosystems together.",
+        "Get ready to meet incredible living things."
+      ],
+      "sections": {
+        "animals": "Animals",
+        "oceans": "Oceans",
+        "forests": "Forests"
+      }
+    },
+    "space": {
+      "name": "Space",
+      "welcomePhrases": [
+        "Welcome astronaut! Space is huge and exciting.",
+        "Let us travel through planets and stars.",
+        "Ready for a cosmic learning journey?"
+      ],
+      "sections": {
+        "planets": "Planets",
+        "missions": "Missions",
+        "stars": "Stars"
+      }
+    },
+    "history": {
+      "name": "History",
+      "welcomePhrases": [
+        "Welcome time traveler!",
+        "History helps us understand people from the past.",
+        "Let us meet civilizations and inventors."
+      ],
+      "sections": {
+        "civilizations": "Civilizations",
+        "inventions": "Inventions",
+        "explorers": "Explorers"
+      }
+    },
+    "technology": {
+      "name": "Technology",
+      "welcomePhrases": [
+        "Welcome builder! Technology solves real problems.",
+        "Let us explore inventions from robots to clean energy.",
+        "Ready to discover smart machines?"
+      ],
+      "sections": {
+        "robots": "Robots",
+        "energy": "Energy",
+        "transport": "Transport"
+      }
+    },
+    "human-body": {
+      "name": "Human Body",
+      "welcomePhrases": [
+        "Welcome scientist! Your body is a living wonder.",
+        "Let us explore bones, senses, and the brain.",
+        "Ready to learn how your body works?"
+      ],
+      "sections": {
+        "skeleton": "Skeleton",
+        "brain": "Brain",
+        "senses": "Senses"
+      }
+    },
+    "arts": {
+      "name": "Arts",
+      "welcomePhrases": [
+        "Welcome creator! Art tells stories without limits.",
+        "Let us discover sounds, colors, and shapes.",
+        "Ready to imagine and create?"
+      ],
+      "sections": {
+        "music": "Music",
+        "painting": "Painting",
+        "sculpture": "Sculpture"
+      }
+    }
+  },
+  "articles": {
+    "arctic-fox": {
+      "title": "Arctic Fox",
+      "summary": "The arctic fox has thick fur and small ears that help it keep heat in icy weather.",
+      "questions": [
+        "How does it stay warm in winter?",
+        "Why does its coat color change?",
+        "What does it eat in the tundra?"
+      ]
+    },
+    "coral-reef": {
+      "title": "Coral Reef",
+      "summary": "A coral reef is a busy underwater city where fish and tiny animals live together.",
+      "questions": [
+        "Why are reefs colorful?",
+        "How do corals build reefs?",
+        "What threatens coral reefs?"
+      ]
+    },
+    "redwood": {
+      "title": "Redwood Tree",
+      "summary": "Redwood trees are some of the tallest trees on Earth and can live for centuries.",
+      "questions": [
+        "How tall can a redwood grow?",
+        "Why is bark so thick?",
+        "Where do redwoods grow best?"
+      ]
+    },
+    "saturn": {
+      "title": "Saturn",
+      "summary": "Saturn is a giant planet famous for bright rings made of ice and rock.",
+      "questions": [
+        "What are Saturn's rings made of?",
+        "How many moons orbit Saturn?",
+        "Could we stand on Saturn?"
+      ]
+    },
+    "apollo-11": {
+      "title": "Apollo 11",
+      "summary": "Apollo 11 was the first mission that landed humans on the Moon in 1969.",
+      "questions": [
+        "Who walked on the Moon first?",
+        "How did astronauts return home?",
+        "What tools did they use?"
+      ]
+    },
+    "sun": {
+      "title": "The Sun",
+      "summary": "The Sun is a star that gives Earth light and heat, making life possible.",
+      "questions": [
+        "How hot is the Sun?",
+        "Why does the Sun look yellow?",
+        "What is solar wind?"
+      ]
+    },
+    "egypt": {
+      "title": "Ancient Egypt",
+      "summary": "Ancient Egypt grew near the Nile River and built pyramids, temples, and writing systems.",
+      "questions": [
+        "Why was the Nile important?",
+        "How were pyramids built?",
+        "What are hieroglyphs?"
+      ]
+    },
+    "printing-press": {
+      "title": "Printing Press",
+      "summary": "The printing press helped books spread quickly and made learning available to many people.",
+      "questions": [
+        "Who improved the printing press?",
+        "Why did books become cheaper?",
+        "How did it change schools?"
+      ]
+    },
+    "magellan": {
+      "title": "Magellan Expedition",
+      "summary": "Magellan's expedition completed the first trip around the world, proving Earth can be circled by sea.",
+      "questions": [
+        "Why was the journey difficult?",
+        "How long did the expedition last?",
+        "What did sailors learn?"
+      ]
+    },
+    "mars-rover": {
+      "title": "Mars Rover",
+      "summary": "A Mars rover is a robot explorer that studies rocks and weather on Mars.",
+      "questions": [
+        "How does a rover move on Mars?",
+        "What data does it send home?",
+        "How is it powered?"
+      ]
+    },
+    "solar-panels": {
+      "title": "Solar Panels",
+      "summary": "Solar panels turn sunlight into electricity that can power homes and schools.",
+      "questions": [
+        "How do panels make electricity?",
+        "Can they work on cloudy days?",
+        "Why are they eco-friendly?"
+      ]
+    },
+    "high-speed-train": {
+      "title": "High-Speed Train",
+      "summary": "High-speed trains use powerful electric systems and smooth tracks to travel very fast.",
+      "questions": [
+        "How fast can they go?",
+        "Why are tracks special?",
+        "How are they safe?"
+      ]
+    },
+    "femur": {
+      "title": "Femur",
+      "summary": "The femur is the strongest bone in your body and helps you stand, walk, and jump.",
+      "questions": [
+        "Why is the femur strong?",
+        "How does it connect to the hip?",
+        "How can we keep bones healthy?"
+      ]
+    },
+    "neurons": {
+      "title": "Neurons",
+      "summary": "Neurons are tiny cells that carry messages through your brain and body.",
+      "questions": [
+        "How do neurons send signals?",
+        "Why are sleep and neurons connected?",
+        "How does learning change neurons?"
+      ]
+    },
+    "eyes": {
+      "title": "Eyes",
+      "summary": "Your eyes collect light and send signals to the brain so you can see the world.",
+      "questions": [
+        "How do pupils work?",
+        "Why do we blink?",
+        "How can we protect our eyes?"
+      ]
+    },
+    "violin": {
+      "title": "Violin",
+      "summary": "The violin creates sound when strings vibrate and the wooden body amplifies the tone.",
+      "questions": [
+        "Why does bowing make sound?",
+        "How many strings does a violin have?",
+        "What is a symphony?"
+      ]
+    },
+    "watercolor": {
+      "title": "Watercolor",
+      "summary": "Watercolor painting uses water and pigment to create soft, transparent layers.",
+      "questions": [
+        "How do artists blend colors?",
+        "Why does paper matter?",
+        "What is a wash technique?"
+      ]
+    },
+    "marble": {
+      "title": "Marble Sculpture",
+      "summary": "Marble sculpture is made by carving stone carefully to reveal shapes and details.",
+      "questions": [
+        "Which tools do sculptors use?",
+        "Why is marble popular?",
+        "How long can a sculpture last?"
+      ]
+    }
+  }
+}
