@@ -5,11 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:web",
+    "build:web": "vite build",
+    "build:desktop": "tauri build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "npm run build:desktop",
+    "check": "npm run build:web && npm run test:rust",
+    "test": "npm run check",
+    "test:frontend": "npm run build:web",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "setup:runtime": "node scripts/prepare-local-runtime.mjs",
+    "paths:runtime": "node scripts/print-runtime-paths.mjs",
+    "generate": "npm run build:web",
+    "package": "npm run build:desktop",
+    "deploy:local": "npm run package"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
