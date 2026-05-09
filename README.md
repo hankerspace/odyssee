@@ -73,6 +73,7 @@ At Tauri startup, the backend creates local folders, initializes SQLite, and exp
 - `detect_hardware`
 - `get_runtime_profile`
 - `get_model_status`
+- `prepare_models`
 - `get_catalog`
 - `generate_article`
 - `generate_image`
@@ -88,7 +89,7 @@ On Windows, Odyssée uses `%APPDATA%\Odyssee`:
     sd.exe
   models\
     phi-4-mini-instruct-q4_k_m.gguf
-    flux.2-q4_0.gguf
+    flux-2-klein-base-4b-Q4_0.gguf
   cache\
     images\
   odyssee.sqlite
@@ -103,16 +104,16 @@ On macOS and Linux, the equivalent directory is `~/.local/share/Odyssee`.
 1. Build or download a `llama.cpp` CLI binary for your hardware.
 2. Rename the CLI to `llama-cli.exe` on Windows or `llama-cli` elsewhere.
 3. Copy the binary to the local `bin` directory printed by `npm run paths:runtime`.
-4. Copy a GGUF model, for example Phi-4 Mini Instruct `Q4_K_M`, to the local `models` directory as `phi-4-mini-instruct-q4_k_m.gguf`.
+4. The app downloads Phi-4 Mini Instruct `Q4_K_M` automatically on first Tauri startup if `phi-4-mini-instruct-q4_k_m.gguf` is missing. You can still copy the file manually to the local `models` directory to skip the download.
 
 ### Image: `stable-diffusion.cpp`
 
 1. Build or download a `stable-diffusion.cpp` CLI binary for your hardware.
 2. Rename the CLI to `sd.exe` on Windows or `sd` elsewhere.
 3. Copy the binary to the local `bin` directory printed by `npm run paths:runtime`.
-4. Copy the image model, for example FLUX.2 `Q4_0`, to the local `models` directory as `flux.2-q4_0.gguf`.
+4. The app downloads FLUX.2 Klein `Q4_0` automatically on first Tauri startup if `flux-2-klein-base-4b-Q4_0.gguf` is missing. You can still copy the file manually to the local `models` directory to skip the download.
 
-The MVP also works without these files through the offline fallback. As soon as the expected binaries and models exist, the Rust commands try to use them and cache successful results locally.
+The MVP also works without these files through the offline fallback. The automatic model download needs network access only for missing model files; if it fails or the sidecar binaries are absent, the deterministic text and SVG fallbacks stay active. As soon as the expected binaries and models exist, the Rust commands try to use them and cache successful results locally.
 
 ## Scripts
 
@@ -157,13 +158,13 @@ npm run package
 
 ## Parental Safety Notes
 
-- Application code does not send data to the cloud.
+- Application code does not send prompts or generated history to the cloud; first-start model bootstrap only downloads the public GGUF files when they are missing.
 - Text prompts always include a child-safe instruction: factual, kind, and free from inappropriate content.
 - Image prompts are wrapped in an educational illustration style: sticker style, clean lines, bright colors, and a white background.
 - Generated history remains in the local SQLite and file cache.
 
 ## MVP Limitations
 
-- Automatic download of large model files is not implemented yet; this MVP documents the expected paths and provides a testable offline fallback.
+- First-start model download is implemented for the default GGUF files, but the sidecar binaries still need to be installed manually for the target hardware.
 - LanceDB/vector RAG is not integrated in this first MVP; SQLite currently stores the navigation tree and cache.
 - Real performance depends on the selected sidecar binaries and whether they were compiled for CUDA, Metal, Vulkan, or CPU.

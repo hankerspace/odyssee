@@ -87,6 +87,8 @@ const errorMessage = ref('')
 const loadingCatalog = ref(false)
 const loadingArticle = ref(false)
 const loadingImage = ref(false)
+const preparingModels = ref(false)
+const modelPreparationError = ref('')
 const systemProfile = ref({
   hardware: 'Unknown',
   accelerator: 'Unknown',
@@ -100,8 +102,11 @@ const systemProfile = ref({
 const modelStatus = ref({
   llm_ready: false,
   image_ready: false,
+  llm_model_ready: false,
+  image_model_ready: false,
   llm_model: 'N/A',
   image_model: 'N/A',
+  downloads: null,
 })
 
 const availableLocales = [
@@ -190,6 +195,16 @@ async function loadSystemProfile() {
   try {
     systemProfile.value = await invoke('get_runtime_profile')
     modelStatus.value = await invoke('get_model_status')
+
+    if (!modelStatus.value.llm_model_ready || !modelStatus.value.image_model_ready) {
+      preparingModels.value = true
+      modelPreparationError.value = ''
+      modelStatus.value = {
+        ...modelStatus.value,
+        downloads: await invoke('prepare_models'),
+      }
+      modelStatus.value = await invoke('get_model_status')
+    }
   } catch {
     systemProfile.value = {
       hardware: 'Browser Preview',
@@ -201,6 +216,9 @@ async function loadSystemProfile() {
       llm_binary: 'Use Tauri runtime for sidecar path',
       image_binary: 'Use Tauri runtime for sidecar path',
     }
+    modelPreparationError.value = 'Téléchargement automatique indisponible dans ce mode.'
+  } finally {
+    preparingModels.value = false
   }
 }
 
@@ -484,9 +502,17 @@ watch(locale, async () => {
         </dl>
 
         <div class="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
-          <p><strong>LLM:</strong> {{ modelStatus.llm_ready ? 'prêt' : 'fallback actif' }}</p>
+          <p v-if="preparingModels" class="inline-flex items-center gap-1 font-medium text-blue-700">
+            <LoaderCircle class="h-4 w-4 animate-spin" /> Téléchargement initial des modèles…
+          </p>
+          <p v-if="modelPreparationError" class="font-medium text-amber-700">{{ modelPreparationError }}</p>
+          <p><strong>LLM:</strong> {{ modelStatus.llm_ready ? 'prêt' : (modelStatus.llm_model_ready ? 'modèle prêt, binaire absent' : 'téléchargement / fallback actif') }}</p>
+          <p class="break-all"><strong>Modèle LLM:</strong> {{ modelStatus.llm_model }}</p>
+          <p v-if="modelStatus.downloads?.llm?.error" class="text-amber-700">{{ modelStatus.downloads.llm.error }}</p>
           <p class="break-all"><strong>llama.cpp:</strong> {{ systemProfile.llm_binary }}</p>
-          <p><strong>Image:</strong> {{ modelStatus.image_ready ? 'prêt' : 'placeholder SVG actif' }}</p>
+          <p><strong>Image:</strong> {{ modelStatus.image_ready ? 'prêt' : (modelStatus.image_model_ready ? 'modèle prêt, binaire absent' : 'téléchargement / placeholder SVG actif') }}</p>
+          <p class="break-all"><strong>Modèle image:</strong> {{ modelStatus.image_model }}</p>
+          <p v-if="modelStatus.downloads?.image?.error" class="text-amber-700">{{ modelStatus.downloads.image.error }}</p>
           <p class="break-all"><strong>stable-diffusion.cpp:</strong> {{ systemProfile.image_binary }}</p>
           <p><strong>{{ t('app.system.promptGuard') }}:</strong> {{ systemProfile.safety_prompt }}</p>
           <p><strong>{{ t('app.system.styleWrapper') }}:</strong> {{ systemProfile.style_wrapper }}</p>

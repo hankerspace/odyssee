@@ -26,7 +26,7 @@ impl RuntimePaths {
     let cache_dir = data_dir.join("cache");
     let bin_dir = data_dir.join("bin");
 
-    Self {
+    let paths = Self {
       data_dir: data_dir.clone(),
       model_dir: model_dir.clone(),
       cache_dir: cache_dir.clone(),
@@ -36,11 +36,15 @@ impl RuntimePaths {
       image_binary: bin_dir.join(executable_name("sd")),
       llm_model: model_dir.join(LLM_MODEL_FILE),
       image_model: model_dir.join(IMAGE_MODEL_FILE),
-    }
+    };
+    log::info!("Resolved runtime paths under '{}'", data_dir.display());
+    paths
   }
 }
 
+/// Creates the local storage directories required by the backend.
 pub(crate) fn ensure_storage(paths: &RuntimePaths) -> Result<(), String> {
+  log::info!("Ensuring local storage directories under '{}'", paths.data_dir.display());
   fs::create_dir_all(&paths.data_dir).map_err(|error| error.to_string())?;
   fs::create_dir_all(&paths.model_dir).map_err(|error| error.to_string())?;
   fs::create_dir_all(&paths.cache_dir).map_err(|error| error.to_string())?;
@@ -67,6 +71,7 @@ fn executable_name(name: &str) -> String {
 fn resolve_data_directory() -> PathBuf {
   if cfg!(target_os = "windows") {
     if let Ok(app_data) = env::var("APPDATA") {
+      // Match the Windows runtime layout documented for the MVP.
       return PathBuf::from(app_data).join("Odyssee");
     }
   }

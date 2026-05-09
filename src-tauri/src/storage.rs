@@ -9,11 +9,13 @@ use rusqlite::{params, Connection, OptionalExtension};
 /// Opens the local SQLite database and idempotently applies schema + seed data.
 pub(crate) fn open_database(paths: &RuntimePaths) -> Result<Connection, String> {
   ensure_storage(paths)?;
+  log::info!("Opening SQLite database at '{}'", paths.database_path.display());
   let connection = Connection::open(&paths.database_path).map_err(|error| error.to_string())?;
   initialize_database(&connection)?;
   Ok(connection)
 }
 
+/// Normalizes frontend locales to the two supported catalog languages.
 pub(crate) fn normalize_locale(locale: Option<&str>) -> &'static str {
   match locale.unwrap_or("fr").to_lowercase().as_str() {
     "en" | "en-us" | "en-gb" => "en",
@@ -22,6 +24,7 @@ pub(crate) fn normalize_locale(locale: Option<&str>) -> &'static str {
 }
 
 pub(crate) fn load_catalog(connection: &Connection, locale: &str) -> Result<CatalogResponse, String> {
+  log::info!("Loading catalog from SQLite for locale='{locale}'");
   let mut statement = connection
     .prepare("SELECT id, icon, color, name_fr, name_en, welcome_fr, welcome_en FROM domains ORDER BY rowid")
     .map_err(|error| error.to_string())?;
@@ -57,6 +60,7 @@ pub(crate) fn load_catalog(connection: &Connection, locale: &str) -> Result<Cata
 }
 
 pub(crate) fn load_article(connection: &Connection, article_id: &str, locale: &str) -> Result<ArticleDto, String> {
+  log::info!("Loading article from SQLite: article_id='{article_id}', locale='{locale}'");
   connection
     .query_row(
       "SELECT id, title_fr, title_en, summary_fr, summary_en, questions_fr, questions_en FROM articles WHERE id = ?1",
@@ -81,10 +85,12 @@ pub(crate) fn load_article(connection: &Connection, article_id: &str, locale: &s
 }
 
 pub(crate) fn read_cache(connection: &Connection, key: &str) -> Result<Option<String>, String> {
-  connection
+  let value = connection
     .query_row("SELECT value FROM cache_entries WHERE key = ?1", params![key], |row| row.get(0))
     .optional()
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+  log::info!("Cache {} for key='{key}'", if value.is_some() { "hit" } else { "miss" });
+  Ok(value)
 }
 
 pub(crate) fn write_cache(connection: &Connection, key: &str, value: &str) -> Result<(), String> {
@@ -94,10 +100,12 @@ pub(crate) fn write_cache(connection: &Connection, key: &str, value: &str) -> Re
       params![key, value, now_millis() as i64],
     )
     .map_err(|error| error.to_string())?;
+  log::info!("Cache entry written for key='{key}'");
   Ok(())
 }
 
 fn initialize_database(connection: &Connection) -> Result<(), String> {
+  log::info!("Ensuring SQLite schema and seed data are available");
   connection
     .execute_batch(
       "CREATE TABLE IF NOT EXISTS domains (
@@ -140,6 +148,7 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
 }
 
 fn seed_database(connection: &Connection) -> Result<(), String> {
+  log::info!("Seeding deterministic catalog data");
   for domain in DOMAINS {
     connection
       .execute(

@@ -13,5 +13,5 @@ console.log(JSON.stringify({
   llmBinary: join(paths.binDir, paths.llamaBinary),
   imageBinary: join(paths.binDir, paths.imageBinary),
   llmModel: join(paths.modelsDir, 'phi-4-mini-instruct-q4_k_m.gguf'),
-  imageModel: join(paths.modelsDir, 'flux.2-q4_0.gguf'),
+  imageModel: join(paths.modelsDir, 'flux-2-klein-base-4b-Q4_0.gguf'),
 }, null, 2))

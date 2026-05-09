@@ -2,6 +2,7 @@ mod commands;
 mod constants;
 mod generation;
 mod hardware;
+mod model_download;
 mod models;
 mod paths;
 mod seeds;
@@ -23,7 +24,7 @@ const SAFETY_PROMPT: &str = "You are a children encyclopedia. Never mention viol
 const STYLE_WRAPPER: &str = "A professional educational illustration of [SUBJECT], sticker style, clean lines, bright colors, white background, high quality for children encyclopedia.";
 const DB_FILE_NAME: &str = "odyssee.sqlite";
 const LLM_MODEL_FILE: &str = "phi-4-mini-instruct-q4_k_m.gguf";
-const IMAGE_MODEL_FILE: &str = "flux.2-q4_0.gguf";
+const IMAGE_MODEL_FILE: &str = "flux-2-klein-base-4b-Q4_0.gguf";
 
 #[derive(Clone, Copy)]
 struct DomainSeed {
@@ -853,19 +854,20 @@ fn resolve_cache_directory() -> String {
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
+      // Register backend logging for both debug and packaged builds.
+      app.handle().plugin(
+        tauri_plugin_log::Builder::default()
+          .level(log::LevelFilter::Info)
+          .build(),
+      )?;
+      log::info!("Odyssée Kids backend logging initialized");
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
       commands::detect_hardware,
       commands::get_runtime_profile,
       commands::get_model_status,
+      commands::prepare_models,
       commands::get_catalog,
       commands::generate_article,
       commands::generate_image

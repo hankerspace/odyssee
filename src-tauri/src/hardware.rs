@@ -9,6 +9,7 @@ use std::process::Command;
 /// Produces a best-effort local inference profile without contacting external services.
 pub(crate) fn detect_hardware_profile() -> HardwareProfile {
   if cfg!(target_os = "macos") {
+    log::info!("Hardware detection selected Metal profile for macOS");
     return HardwareProfile {
       hardware: "Mac (Apple Silicon)".to_string(),
       accelerator: "Metal".to_string(),
@@ -17,6 +18,7 @@ pub(crate) fn detect_hardware_profile() -> HardwareProfile {
   }
 
   if has_command("nvidia-smi") {
+    log::info!("Hardware detection selected CUDA profile from nvidia-smi");
     return HardwareProfile {
       hardware: "NVIDIA RTX".to_string(),
       accelerator: "CUDA".to_string(),
@@ -25,6 +27,7 @@ pub(crate) fn detect_hardware_profile() -> HardwareProfile {
   }
 
   if env::var("VULKAN_SDK").is_ok() || env::var("VK_ICD_FILENAMES").is_ok() {
+    log::info!("Hardware detection selected Vulkan profile from environment variables");
     return HardwareProfile {
       hardware: "AMD / Intel GPU".to_string(),
       accelerator: "Vulkan".to_string(),
@@ -32,6 +35,7 @@ pub(crate) fn detect_hardware_profile() -> HardwareProfile {
     };
   }
 
+  log::info!("Hardware detection selected CPU fallback profile");
   HardwareProfile {
     hardware: "PC without dedicated GPU".to_string(),
     accelerator: "CPU (AVX2/AVX512 when available)".to_string(),
@@ -64,6 +68,7 @@ pub(crate) fn build_runtime_profile() -> RuntimeProfile {
 }
 
 fn accelerator_flags(accelerator: &str) -> (Vec<String>, Vec<String>) {
+  // Keep sidecar flags centralized so command handlers only orchestrate execution.
   match accelerator {
     "CUDA" => (
       vec!["--ctx-size".into(), "4096".into(), "--n-gpu-layers".into(), "99".into()],

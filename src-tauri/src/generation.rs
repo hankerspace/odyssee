@@ -7,10 +7,13 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) fn image_prompt(title: &str) -> String {
+  log::info!("Building image prompt for title='{title}'");
   STYLE_WRAPPER.replace("[SUBJECT]", title)
 }
 
+/// Builds the child-safe text prompt sent to the optional LLM sidecar.
 pub(crate) fn build_article_prompt(article: &ArticleDto, locale: &str) -> String {
+  log::info!("Building article prompt: article_id='{}', locale='{locale}'", article.id);
   let language_instruction = if locale == "en" {
     "Answer in English for a child aged 6 to 10. Use short paragraphs and end with exactly three curiosity questions."
   } else {
@@ -26,6 +29,7 @@ pub(crate) fn build_article_prompt(article: &ArticleDto, locale: &str) -> String
 }
 
 pub(crate) fn fallback_article_text(article: &ArticleDto, locale: &str, sidecar_error: Option<&str>) -> String {
+  log::info!("Rendering fallback article text: article_id='{}', locale='{locale}'", article.id);
   let intro = if locale == "en" {
     "Local demo explanation"
   } else {
@@ -48,6 +52,7 @@ pub(crate) fn fallback_article_text(article: &ArticleDto, locale: &str, sidecar_
 }
 
 pub(crate) fn write_placeholder_svg(output_path: &Path, article: &ArticleDto, locale: &str) -> Result<(), String> {
+  log::info!("Writing fallback SVG illustration: article_id='{}', path='{}'", article.id, output_path.display());
   let label = if locale == "en" { "offline illustration" } else { "illustration hors ligne" };
   let safe_title = escape_xml(&article.title);
   let safe_label = escape_xml(label);
