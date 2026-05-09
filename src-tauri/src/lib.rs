@@ -2,6 +2,7 @@ mod commands;
 mod constants;
 mod generation;
 mod hardware;
+mod i18n;
 mod model_download;
 mod models;
 mod paths;
@@ -373,18 +374,19 @@ fn generate_article(request: ArticleRequest) -> Result<GeneratedArticle, String>
 
   let prompt = build_article_prompt(&article, language);
   let profile = get_runtime_profile();
-  let generated_text = if paths.llm_binary.exists() && paths.llm_model.exists() {
-    run_llama_sidecar(&paths, &profile.llm_flags, &prompt).unwrap_or_else(|error| fallback_article_text(&article, language, Some(&error)))
-  } else {
-    fallback_article_text(&article, language, None)
-  };
+  if !paths.llm_binary.exists() || !paths.llm_model.exists() {
+    return Err(format!("LLM sidecar or model missing for article_id='{}'", article.id));
+  }
+
+  let generated_text = run_llama_sidecar(&paths, &profile.llm_flags, &prompt)
+    .map_err(|error| format!("llama.cpp sidecar failed for article_id='{}': {error}", article.id))?;
 
   write_cache(&connection, &cache_key, &generated_text)?;
 
   Ok(GeneratedArticle {
     article,
     generated_text,
-    source: if paths.llm_binary.exists() && paths.llm_model.exists() { "llama.cpp" } else { "fallback" }.to_string(),
+    source: "llama.cpp".to_string(),
     prompt,
     cached: false,
   })
@@ -412,35 +414,21 @@ fn generate_image(request: ArticleRequest) -> Result<GeneratedImage, String> {
   }
 
   fs::create_dir_all(&paths.image_cache_dir).map_err(|error| error.to_string())?;
-  let output_path = paths.image_cache_dir.join(format!("{}-{}.svg", article.id, now_millis()));
+  let output_path = paths.image_cache_dir.join(format!("{}-{}.png", article.id, now_millis()));
   let profile = get_runtime_profile();
 
-  let source = if paths.image_binary.exists() && paths.image_model.exists() {
-    let generated_path = output_path.with_extension("png");
-    match run_stable_diffusion_sidecar(&paths, &profile.image_flags, &prompt, &generated_path) {
-      Ok(()) => {
-        write_cache(&connection, &cache_key, &generated_path.display().to_string())?;
-        return Ok(GeneratedImage {
-          article_id: article.id,
-          prompt,
-          source: "stable-diffusion.cpp".to_string(),
-          image_path: generated_path.display().to_string(),
-          cached: false,
-        });
-      }
-      Err(error) => format!("fallback ({error})"),
-    }
-  } else {
-    "fallback".to_string()
-  };
+  if !paths.image_binary.exists() || !paths.image_model.exists() {
+    return Err(format!("Image sidecar or model missing for article_id='{}'", article.id));
+  }
 
-  write_placeholder_svg(&output_path, &article, language)?;
+  run_stable_diffusion_sidecar(&paths, &profile.image_flags, &prompt, &output_path)
+    .map_err(|error| format!("stable-diffusion.cpp sidecar failed for article_id='{}': {error}", article.id))?;
   write_cache(&connection, &cache_key, &output_path.display().to_string())?;
 
   Ok(GeneratedImage {
     article_id: article.id,
     prompt,
-    source,
+    source: "stable-diffusion.cpp".to_string(),
     image_path: output_path.display().to_string(),
     cached: false,
   })
@@ -728,27 +716,6 @@ fn build_article_prompt(article: &ArticleDto, locale: &str) -> String {
   )
 }
 
-fn fallback_article_text(article: &ArticleDto, locale: &str, sidecar_error: Option<&str>) -> String {
-  let intro = if locale == "en" {
-    "Local demo explanation"
-  } else {
-    "Explication locale de démonstration"
-  };
-  let curiosity_label = if locale == "en" { "Curiosity paths" } else { "Pistes de curiosité" };
-  let sidecar_note = sidecar_error
-    .map(|error| format!("\n\nMode fallback actif: {error}"))
-    .unwrap_or_default();
-
-  format!(
-    "{intro}: {}\n\n{}\n\n{curiosity_label}:\n• {}\n• {}\n• {}{}",
-    article.title,
-    article.summary,
-    article.questions.get(0).cloned().unwrap_or_default(),
-    article.questions.get(1).cloned().unwrap_or_default(),
-    article.questions.get(2).cloned().unwrap_or_default(),
-    sidecar_note
-  )
-}
 
 fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: &str) -> Result<String, String> {
   let output = Command::new(&paths.llm_binary)
@@ -790,40 +757,6 @@ fn run_stable_diffusion_sidecar(paths: &RuntimePaths, flags: &[String], prompt: 
   }
 }
 
-fn write_placeholder_svg(output_path: &Path, article: &ArticleDto, locale: &str) -> Result<(), String> {
-  let label = if locale == "en" { "offline illustration" } else { "illustration hors ligne" };
-  let safe_title = escape_xml(&article.title);
-  let safe_label = escape_xml(label);
-  let svg = format!(
-    r##"<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#dbeafe"/>
-      <stop offset="55%" stop-color="#f5d0fe"/>
-      <stop offset="100%" stop-color="#dcfce7"/>
-    </linearGradient>
-  </defs>
-  <rect width="960" height="640" rx="48" fill="url(#bg)"/>
-  <circle cx="220" cy="170" r="80" fill="#ffffff" opacity="0.65"/>
-  <circle cx="750" cy="450" r="120" fill="#ffffff" opacity="0.5"/>
-  <rect x="170" y="190" width="620" height="260" rx="42" fill="#ffffff" opacity="0.82"/>
-  <text x="480" y="305" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#1e293b">{safe_title}</text>
-  <text x="480" y="372" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#475569">{safe_label}</text>
-  <text x="480" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#64748b">stable-diffusion.cpp prêt dès que le modèle est installé</text>
-</svg>"##
-  );
-
-  fs::write(output_path, svg).map_err(|error| error.to_string())
-}
-
-fn escape_xml(value: &str) -> String {
-  value
-    .replace('&', "&amp;")
-    .replace('<', "&lt;")
-    .replace('>', "&gt;")
-    .replace('"', "&quot;")
-    .replace('\'', "&apos;")
-}
 
 fn now_millis() -> u128 {
   SystemTime::now()
@@ -871,6 +804,8 @@ pub fn run() {
       commands::clear_generation_cache,
       commands::get_catalog,
       commands::generate_article,
+      commands::generate_questions,
+      commands::generate_subcategories,
       commands::generate_image
     ])
     .run(tauri::generate_context!())
@@ -884,10 +819,11 @@ mod tests {
   use crate::hardware::build_runtime_profile;
   use crate::models::ArticleDto;
   use crate::seeds::{ARTICLES, DOMAINS, SECTIONS};
+  use serde_json::Value;
 
   #[test]
   fn runtime_profile_includes_guardrails() {
-    let profile = build_runtime_profile();
+    let profile = build_runtime_profile("en");
     assert!(profile.safety_prompt.contains("children encyclopedia"));
     assert!(profile.style_wrapper.contains("[SUBJECT]"));
     assert!(profile.llm_model.contains(LLM_MODEL_FILE));
@@ -895,7 +831,7 @@ mod tests {
 
   #[test]
   fn runtime_profile_has_storage_paths() {
-    let profile = build_runtime_profile();
+    let profile = build_runtime_profile("en");
     assert!(!profile.model_directory.is_empty());
     assert!(!profile.cache_directory.is_empty());
     assert!(!profile.database_path.is_empty());
@@ -903,9 +839,9 @@ mod tests {
 
   #[test]
   fn catalog_seed_has_required_tree() {
-    assert_eq!(DOMAINS.len(), 6);
-    assert_eq!(SECTIONS.len(), 18);
-    assert_eq!(ARTICLES.len(), 18);
+    assert_eq!(DOMAINS.len(), 8);
+    assert_eq!(SECTIONS.len(), 24);
+    assert_eq!(ARTICLES.len(), 24);
   }
 
   #[test]
@@ -920,5 +856,21 @@ mod tests {
     let prompt = build_article_prompt(&article, "fr", None);
     assert!(prompt.contains(SAFETY_PROMPT));
     assert!(prompt.contains("Renard polaire"));
+  }
+
+  #[test]
+  fn tauri_asset_protocol_allows_generated_images() {
+    let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+    let asset_protocol = &config["app"]["security"]["assetProtocol"];
+
+    assert_eq!(asset_protocol["enable"], true);
+
+    let scope = asset_protocol["scope"].as_array().unwrap();
+    assert!(scope
+      .iter()
+      .any(|entry| entry == "$HOME/.local/share/Odyssee/cache/images/**"));
+    assert!(scope
+      .iter()
+      .any(|entry| entry == "$DATA/Odyssee/cache/images/**"));
   }
 }

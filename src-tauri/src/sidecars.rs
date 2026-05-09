@@ -2,8 +2,12 @@
 
 use crate::paths::RuntimePaths;
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
+
+const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n'];
 
 pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: &str) -> Result<String, String> {
   log::info!("Starting llama.cpp sidecar: binary='{}', model='{}'", paths.llm_binary.display(), paths.llm_model.display());
@@ -13,7 +17,9 @@ pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: 
     .arg("-p")
     .arg(prompt)
     .arg("--single-turn")
+    .arg("--no-conversation")
     .arg("--no-display-prompt")
+    .arg("--simple-io")
     .arg("-n")
     .arg("420")
     .args(flags)
@@ -35,12 +41,12 @@ pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: 
 }
 
 fn clean_llama_output(output: &str, prompt: &str) -> Result<String, String> {
-  let answer = output
-    .find(prompt)
-    .map(|index| &output[index + prompt.len()..])
-    .unwrap_or(output);
+  let output = remove_backspace_sequences(output);
+  let prompt = remove_backspace_sequences(prompt);
+  let answer = extract_llama_answer(&output, &prompt);
   let cleaned = answer
     .lines()
+    .map(trim_llama_diagnostic_fragments)
     .filter(|line| !is_llama_noise_line(line))
     .collect::<Vec<_>>()
     .join("\n")
@@ -54,11 +60,47 @@ fn clean_llama_output(output: &str, prompt: &str) -> Result<String, String> {
   }
 }
 
+fn extract_llama_answer(output: &str, prompt: &str) -> String {
+  if let Some(index) = output.find(prompt) {
+    return output[index + prompt.len()..].to_string();
+  }
+
+  let prompt_line_count = prompt.lines().count();
+  let lines = output.lines().collect::<Vec<_>>();
+  lines
+    .iter()
+    .position(|line| line.trim_start().starts_with("> "))
+    .map(|index| lines[(index + prompt_line_count).min(lines.len())..].join("\n"))
+    .unwrap_or_else(|| output.to_string())
+}
+
+fn remove_backspace_sequences(value: &str) -> String {
+  let mut cleaned = Vec::new();
+  for character in value.chars() {
+    if character == '\u{8}' {
+      cleaned.pop();
+    } else {
+      cleaned.push(character);
+    }
+  }
+  cleaned.into_iter().collect()
+}
+
+fn trim_llama_diagnostic_fragments(line: &str) -> &str {
+  ["common_memory_breakdown_print:", "ggml_metal_free:"]
+    .iter()
+    .filter_map(|marker| line.find(marker))
+    .min()
+    .map(|index| &line[..index])
+    .unwrap_or(line)
+}
+
 fn is_llama_noise_line(line: &str) -> bool {
   let trimmed = line.trim();
   trimmed == ">"
     || trimmed == "Exiting..."
     || trimmed == "Loading model..."
+    || trimmed.starts_with("Loading model...")
     || trimmed.starts_with("[ Prompt:")
     || trimmed.starts_with("[Prompt:")
     || trimmed.starts_with("ggml_")
@@ -88,13 +130,33 @@ pub(crate) fn run_stable_diffusion_sidecar(paths: &RuntimePaths, flags: &[String
   let output = command.output()
     .map_err(|error| error.to_string())?;
 
-  if output.status.success() && output_path.exists() {
+  if output.status.success() {
+    validate_generated_png(output_path)?;
     log::info!("stable-diffusion.cpp sidecar completed successfully");
     Ok(())
   } else {
     log::warn!("stable-diffusion.cpp sidecar failed with status {}", output.status);
     Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
   }
+}
+
+fn validate_generated_png(output_path: &Path) -> Result<(), String> {
+  let mut header = [0; 24];
+  File::open(output_path)
+    .and_then(|mut file| file.read_exact(&mut header))
+    .map_err(|_| "stable-diffusion.cpp returned no usable image".to_string())?;
+
+  if header[..8] != PNG_SIGNATURE || header[8..12] != [0, 0, 0, 13] || header[12..16] != *b"IHDR" {
+    return Err("stable-diffusion.cpp returned an invalid PNG image".to_string());
+  }
+
+  let width = u32::from_be_bytes([header[16], header[17], header[18], header[19]]);
+  let height = u32::from_be_bytes([header[20], header[21], header[22], header[23]]);
+  if width == 0 || height == 0 {
+    return Err("stable-diffusion.cpp returned an empty image".to_string());
+  }
+
+  Ok(())
 }
 
 fn configure_stable_diffusion_library_path(command: &mut Command, paths: &RuntimePaths) {
@@ -120,7 +182,9 @@ fn configure_stable_diffusion_library_path(command: &mut Command, paths: &Runtim
 
 #[cfg(test)]
 mod tests {
-  use super::clean_llama_output;
+  use super::{clean_llama_output, validate_generated_png};
+  use std::fs;
+  use std::path::PathBuf;
 
   #[test]
   fn clean_llama_output_removes_prompt_markers() {
@@ -167,5 +231,67 @@ ggml_metal_free: deallocating\n";
       cleaned,
       "A high-speed train is a special train.\n\nCuriosity questions:\n\n- How fast can it go?\n- Why are tracks special?\n- How does it stay safe?"
     );
+  }
+
+  #[test]
+  fn clean_llama_output_keeps_answer_after_interactive_prompt_with_crlf() {
+    let prompt = "You are a children encyclopedia. Never mention violent, political, or inappropriate content. Stay factual and kind.\n\nAnswer in English for a child aged 6 to 10. Use short paragraphs and end with exactly three curiosity questions.\n\nSujet: The Sun\nRésumé fiable: The Sun is a star. It gives Earth light and heat, helping plants grow and life exist.\nQuestions proposées: How hot is it? | Why does it look yellow? | What is solar wind?";
+    let echoed_prompt = prompt.replace('\n', "\r\n");
+    let output = format!(
+      "Loading model...\n\navailable commands:\n  /exit or Ctrl+C     stop or exit\n\n> {echoed_prompt}\n\nThe Sun is a star that is very far away from us.\n\nHow hot is it?\nWhy does it look yellow?\nWhat is solar wind?\n\n[ Prompt: 1273.0 t/s | Generation: 133.2 t/s ]\n\nExiting...\n"
+    );
+
+    let cleaned = clean_llama_output(&output, prompt).expect("output should keep generated answer");
+
+    assert_eq!(
+      cleaned,
+      "The Sun is a star that is very far away from us.\n\nHow hot is it?\nWhy does it look yellow?\nWhat is solar wind?"
+    );
+  }
+
+  #[test]
+  fn clean_llama_output_keeps_answer_with_spinner_and_inline_diagnostics() {
+    let prompt = "You are a children encyclopedia.\n\nSujet: The Sun\nRésumé fiable: The Sun is a star.";
+    let output = format!(
+      "Loading model... |\u{8}-\u{8}\\\u{8}|\u{8}  \u{8}\n\n> {prompt}\n\n|\u{8} \u{8}The Sun is a star that gives Earth light and heat.common_memory_breakdown_print: | memory breakdown [MiB] |\nggml_metal_free: deallocating\n\n[ Prompt: 1270.2 t/s | Generation: 129.0 t/s ]\n\nExiting...\n"
+    );
+
+    let cleaned = clean_llama_output(&output, &prompt).expect("output should keep generated answer");
+
+    assert_eq!(
+      cleaned,
+      "The Sun is a star that gives Earth light and heat."
+    );
+  }
+
+  #[test]
+  fn validate_generated_png_rejects_empty_file() {
+    let output_path = temporary_test_path("empty.png");
+    fs::write(&output_path, []).expect("empty test image should be written");
+
+    let error = validate_generated_png(&output_path).expect_err("empty image should fail validation");
+
+    assert_eq!(error, "stable-diffusion.cpp returned no usable image");
+    fs::remove_file(output_path).ok();
+  }
+
+  #[test]
+  fn validate_generated_png_accepts_png_with_dimensions() {
+    let output_path = temporary_test_path("valid.png");
+    let png_header = [
+      0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n',
+      0x00, 0x00, 0x00, 0x0d,
+      b'I', b'H', b'D', b'R',
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x01,
+    ];
+    fs::write(&output_path, png_header).expect("valid test image should be written");
+
+    validate_generated_png(&output_path).expect("valid PNG header should pass validation");
+    fs::remove_file(output_path).ok();
+  }
+
+  fn temporary_test_path(file_name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("odyssee-sidecars-{}-{file_name}", std::process::id()))
   }
 }

@@ -20,7 +20,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/.local/share/Odyssee/cache/images/**",
+          "$DATA/Odyssee/cache/images/**"
+        ]
+      }
     }
   },
   "bundle": {

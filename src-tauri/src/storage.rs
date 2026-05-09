@@ -1,6 +1,7 @@
 //! SQLite schema management, catalog loading, and generated content cache helpers.
 
 use crate::generation::now_millis;
+use crate::i18n::{backend_messages, translate};
 use crate::models::{ArticleDto, CatalogResponse, DomainDto, SectionDto};
 use crate::paths::{ensure_storage, RuntimePaths};
 use crate::seeds::{ARTICLES, DOMAINS, SECTIONS};
@@ -59,6 +60,18 @@ pub(crate) fn load_catalog(connection: &Connection, locale: &str) -> Result<Cata
   Ok(CatalogResponse { domains })
 }
 
+pub(crate) fn load_domain_sections(connection: &Connection, domain_id: &str, locale: &str) -> Result<Vec<SectionDto>, String> {
+  let sections = load_sections(connection, domain_id, locale)?;
+  if sections.is_empty() {
+    Err(translate(
+      &backend_messages(locale).errors.unknown_domain,
+      &[("domain_id", domain_id)],
+    ))
+  } else {
+    Ok(sections)
+  }
+}
+
 pub(crate) fn load_article(connection: &Connection, article_id: &str, locale: &str) -> Result<ArticleDto, String> {
   log::info!("Loading article from SQLite: article_id='{article_id}', locale='{locale}'");
   connection
@@ -81,7 +94,12 @@ pub(crate) fn load_article(connection: &Connection, article_id: &str, locale: &s
     )
     .optional()
     .map_err(|error| error.to_string())?
-    .ok_or_else(|| format!("Unknown article: {article_id}"))
+    .ok_or_else(|| {
+      translate(
+        &backend_messages(locale).errors.unknown_article,
+        &[("article_id", article_id)],
+      )
+    })
 }
 
 pub(crate) fn read_cache(connection: &Connection, key: &str) -> Result<Option<String>, String> {

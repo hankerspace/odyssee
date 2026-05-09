@@ -3,10 +3,26 @@
     "title": "Odyssée Kids",
     "subtitle": "Encyclopédie enfant hors ligne alimentée par une IA locale",
     "language": "Langue",
+    "localOnly": "100% local",
+    "locales": {
+      "en": "English",
+      "fr": "Français"
+    },
     "levels": {
       "domains": "Roue des domaines",
       "topics": "Exploration thématique",
       "article": "Fiche encyclopédique"
+    },
+    "breadcrumbs": {
+      "domains": "Domaines",
+      "ariaLabel": "Fil d'Ariane"
+    },
+    "domains": {
+      "title": "La roue des domaines",
+      "subtitle": "Choisis une grande porte du savoir, puis zoome vers un thème."
+    },
+    "topics": {
+      "subtitle": "Exploration thématique guidée par l'arborescence SQLite."
     },
     "actions": {
       "back": "Retour",
@@ -14,12 +30,114 @@
       "generateImage": "Illustration générée",
       "curiosityFeed": "Fil de curiosité"
     },
+    "runtime": {
+      "firstLaunch": "Premier lancement local",
+      "prepareTitle": "Préparation des sidecars et des modèles",
+      "prepareBody": "Odyssée Kids récupère les binaires adaptés à cette plateforme, puis vérifie les modèles locaux. Les générations démarrent quand toutes les ressources requises sont prêtes.",
+      "readyCount": "{ready}/{total} prêt(s)",
+      "firstLaunchNote": "Cette étape peut durer plusieurs minutes au premier lancement. Tu peux suivre chaque ressource ci-dessous.",
+      "detectedPlatform": "Plateforme détectée",
+      "localStorage": "Stockage local",
+      "installing": "Téléchargement et installation du runtime local en cours…",
+      "verifying": "Vérification finale des ressources locales…",
+      "onboarding": "Onboarding runtime : sidecars puis modèles…",
+      "assets": {
+        "llmBinary": "Sidecar LLM llama.cpp",
+        "imageBinary": "Sidecar image stable-diffusion.cpp",
+        "llmModel": "Modèle LLM Phi-4 Mini",
+        "imageModel": "Modèle image SD-Turbo"
+      },
+      "summary": {
+        "preparing": "{message} {ready}/{total} ressource(s) déjà prête(s).",
+        "ready": "Runtime local prêt : les générations peuvent utiliser les sidecars.",
+        "missing": "{ready}/{total} ressource(s) prête(s) : préparez les ressources manquantes avant de générer."
+      },
+      "states": {
+        "error": "Erreur",
+        "downloaded": "Téléchargé",
+        "ready": "Déjà prêt",
+        "preparing": "Préparation",
+        "missing": "Absent"
+      },
+      "feedback": {
+        "error": "Préparation impossible pour cette ressource : la génération restera indisponible.",
+        "downloaded": "Installé pendant ce lancement.",
+        "ready": "Déjà présent dans le stockage local.",
+        "preparing": "Téléchargement ou vérification en cours, selon l’état local de cette ressource.",
+        "missing": "Ressource absente pour l’instant : génération indisponible."
+      },
+      "browserPreview": {
+        "hardware": "Aperçu navigateur",
+        "accelerator": "Web",
+        "performance": "Utilisez le runtime Tauri pour détecter le matériel",
+        "storagePath": "Utilisez le runtime Tauri pour le chemin de stockage",
+        "cachePath": "Utilisez le runtime Tauri pour le chemin du cache",
+        "databasePath": "Utilisez le runtime Tauri pour le chemin SQLite",
+        "sidecarPath": "Utilisez le runtime Tauri pour le chemin du sidecar"
+      },
+      "modelStates": {
+        "ready": "prêt",
+        "modelOnly": "modèle prêt, binaire absent ou non exécutable",
+        "missing": "ressource absente"
+      },
+      "labels": {
+        "llm": "LLM",
+        "llmModel": "Modèle LLM",
+        "image": "Image",
+        "imageModel": "Modèle image"
+      }
+    },
+    "generation": {
+      "localInProgress": "Génération locale en cours",
+      "regenerateLoading": "Génération en cours…",
+      "regenerate": "Régénérer depuis les sidecars / cache",
+      "article": {
+        "loading": "Génération du texte avec le LLM local…",
+        "missing": "LLM local indisponible : installez les ressources avant de générer…",
+        "ready": "Texte prêt · {source}",
+        "pending": "Texte en attente de génération.",
+        "titleLoading": "Génération en cours…",
+        "explanationLabel": "Explication adaptative 6-10 ans",
+        "safePlaceholder": "Le moteur prépare une fiche sûre et bienveillante."
+      },
+      "questions": {
+        "loading": "Génération des questions avec un appel LLM séparé…",
+        "missing": "LLM local indisponible : installez les ressources avant de générer…",
+        "ready": "Questions prêtes · {source}",
+        "pending": "Questions en attente de génération."
+      },
+      "subcategories": {
+        "loading": "Génération des sous-catégories avec un appel LLM séparé…",
+        "missing": "LLM local indisponible : sous-catégories SQLite affichées…",
+        "ready": "Sous-catégories prêtes · {source}",
+        "pending": "Sous-catégories locales prêtes."
+      },
+      "image": {
+        "loading": "Génération de l’illustration avec le moteur image local…",
+        "missing": "Moteur image indisponible : installez les ressources avant de générer…",
+        "ready": "Image prête · {source}",
+        "pending": "Illustration en attente de génération.",
+        "ai": "IA image",
+        "alt": "Illustration générée localement",
+        "placeholder": "Préparation de l'illustration…"
+      }
+    },
+    "errors": {
+      "previewMode": "Mode aperçu : {error}",
+      "questions": "Impossible de générer les questions : {error}",
+      "subcategories": "Impossible de générer les sous-catégories : {error}",
+      "article": "Impossible de générer le texte : {error}",
+      "image": "Impossible de générer l'image : {error}",
+      "runtimeUnavailable": "Téléchargement automatique indisponible dans ce mode : {error}"
+    },
     "system": {
       "profile": "Profil système",
       "hardware": "Matériel détecté",
       "accelerator": "Accélérateur",
       "performance": "Performance attendue",
       "modelPath": "Stockage des modèles",
+      "cachePath": "Cache local",
+      "databasePath": "Base SQLite",
       "clearCache": "Purger le cache généré",
       "cacheCleared": "Cache purgé : {entries} entrée(s), {files} fichier(s).",
       "cacheClearError": "Impossible de purger le cache : {error}",

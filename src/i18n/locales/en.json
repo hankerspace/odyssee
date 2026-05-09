@@ -3,10 +3,26 @@
     "title": "Odyssée Kids",
     "subtitle": "Offline children encyclopedia powered by local AI",
     "language": "Language",
+    "localOnly": "100% local",
+    "locales": {
+      "en": "English",
+      "fr": "Français"
+    },
     "levels": {
       "domains": "Domain Wheel",
       "topics": "Theme Explorer",
       "article": "Encyclopedia Card"
+    },
+    "breadcrumbs": {
+      "domains": "Domains",
+      "ariaLabel": "Breadcrumb"
+    },
+    "domains": {
+      "title": "Domain wheel",
+      "subtitle": "Choose a big gateway to knowledge, then zoom into a theme."
+    },
+    "topics": {
+      "subtitle": "Theme exploration guided by the SQLite tree."
     },
     "actions": {
       "back": "Back",
@@ -14,12 +30,114 @@
       "generateImage": "Generated Illustration",
       "curiosityFeed": "Curiosity Feed"
     },
+    "runtime": {
+      "firstLaunch": "First local launch",
+      "prepareTitle": "Preparing sidecars and models",
+      "prepareBody": "Odyssée Kids fetches the binaries for this platform, then checks the local models. Generation starts when every required resource is ready.",
+      "readyCount": "{ready}/{total} ready",
+      "firstLaunchNote": "This step can take several minutes on first launch. You can follow each resource below.",
+      "detectedPlatform": "Detected platform",
+      "localStorage": "Local storage",
+      "installing": "Downloading and installing the local runtime…",
+      "verifying": "Final check of local resources…",
+      "onboarding": "Runtime onboarding: sidecars then models…",
+      "assets": {
+        "llmBinary": "LLM llama.cpp sidecar",
+        "imageBinary": "stable-diffusion.cpp image sidecar",
+        "llmModel": "Phi-4 Mini LLM model",
+        "imageModel": "SD-Turbo image model"
+      },
+      "summary": {
+        "preparing": "{message} {ready}/{total} resource(s) already ready.",
+        "ready": "Local runtime ready: generations can use the sidecars.",
+        "missing": "{ready}/{total} resource(s) ready: prepare missing resources before generating."
+      },
+      "states": {
+        "error": "Error",
+        "downloaded": "Downloaded",
+        "ready": "Already ready",
+        "preparing": "Preparing",
+        "missing": "Missing"
+      },
+      "feedback": {
+        "error": "This resource cannot be prepared: generation will remain unavailable.",
+        "downloaded": "Installed during this launch.",
+        "ready": "Already present in local storage.",
+        "preparing": "Downloading or checking this resource, depending on its local state.",
+        "missing": "Resource currently missing: generation unavailable."
+      },
+      "browserPreview": {
+        "hardware": "Browser Preview",
+        "accelerator": "Web",
+        "performance": "Use the Tauri runtime for hardware detection",
+        "storagePath": "Use the Tauri runtime for the storage path",
+        "cachePath": "Use the Tauri runtime for the cache path",
+        "databasePath": "Use the Tauri runtime for the SQLite path",
+        "sidecarPath": "Use the Tauri runtime for the sidecar path"
+      },
+      "modelStates": {
+        "ready": "ready",
+        "modelOnly": "model ready, binary missing or not executable",
+        "missing": "resource missing"
+      },
+      "labels": {
+        "llm": "LLM",
+        "llmModel": "LLM model",
+        "image": "Image",
+        "imageModel": "Image model"
+      }
+    },
+    "generation": {
+      "localInProgress": "Local generation in progress",
+      "regenerateLoading": "Generation in progress…",
+      "regenerate": "Regenerate from sidecars / cache",
+      "article": {
+        "loading": "Generating text with the local LLM…",
+        "missing": "Local LLM unavailable: install resources before generating…",
+        "ready": "Text ready · {source}",
+        "pending": "Text waiting for generation.",
+        "titleLoading": "Generation in progress…",
+        "explanationLabel": "Adaptive explanation for ages 6-10",
+        "safePlaceholder": "The engine is preparing a safe and kind card."
+      },
+      "questions": {
+        "loading": "Generating questions with a separate LLM call…",
+        "missing": "Local LLM unavailable: install resources before generating…",
+        "ready": "Questions ready · {source}",
+        "pending": "Questions waiting for generation."
+      },
+      "subcategories": {
+        "loading": "Generating subcategories with a separate LLM call…",
+        "missing": "Local LLM unavailable: SQLite subcategories displayed…",
+        "ready": "Subcategories ready · {source}",
+        "pending": "Local subcategories ready."
+      },
+      "image": {
+        "loading": "Generating the illustration with the local image engine…",
+        "missing": "Image engine unavailable: install resources before generating…",
+        "ready": "Image ready · {source}",
+        "pending": "Illustration waiting for generation.",
+        "ai": "Image AI",
+        "alt": "Locally generated illustration",
+        "placeholder": "Preparing illustration…"
+      }
+    },
+    "errors": {
+      "previewMode": "Preview mode: {error}",
+      "questions": "Unable to generate questions: {error}",
+      "subcategories": "Unable to generate subcategories: {error}",
+      "article": "Unable to generate text: {error}",
+      "image": "Unable to generate image: {error}",
+      "runtimeUnavailable": "Automatic download unavailable in this mode: {error}"
+    },
     "system": {
       "profile": "System Profile",
       "hardware": "Detected hardware",
       "accelerator": "Accelerator",
       "performance": "Expected performance",
       "modelPath": "Model storage",
+      "cachePath": "Local cache",
+      "databasePath": "SQLite database",
       "clearCache": "Clear generated cache",
       "cacheCleared": "Cache cleared: {entries} entry/entries, {files} file(s).",
       "cacheClearError": "Unable to clear cache: {error}",

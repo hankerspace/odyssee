@@ -8,7 +8,7 @@ Odyssée Kids is a local-first MVP for an interactive children encyclopedia. A V
 - Fixed SQLite catalog seeded at startup: 6 domains, 18 sections, and 18 bilingual FR/EN articles.
 - Text generation through a `llama.cpp` sidecar with a child-safe prompt guard and local cache.
 - Image generation through a `stable-diffusion.cpp` sidecar with an educational style wrapper and local cache.
-- Offline fallback mode without model files: deterministic educational text and generated SVG illustrations.
+- Generation stops clearly when required sidecars or model files are missing.
 - Runtime profile panel with CUDA, Metal, Vulkan, or CPU detection plus model, cache, and database paths.
 
 ## Architecture
@@ -20,7 +20,7 @@ Odyssée Kids is a local-first MVP for an interactive children encyclopedia. A V
 - Backend modules:
   - `commands.rs`: Tauri command orchestration.
   - `constants.rs`: prompt, storage, and model constants.
-  - `generation.rs`: prompt builders and offline fallback rendering.
+  - `generation.rs`: prompt builders for local generation.
   - `hardware.rs`: hardware detection and accelerator flags.
   - `models.rs`: serialized DTO contracts shared with the frontend.
   - `paths.rs`: runtime path resolution and folder bootstrap.
@@ -60,7 +60,7 @@ npm run paths:runtime
 npm run dev
 ```
 
-This mode is useful for browser-only UI work. Tauri commands are unavailable, so the frontend displays its browser fallback catalog.
+This mode is useful for browser-only UI work. Tauri commands are unavailable, so backend-driven catalog and generation actions are not available.
 
 ## Run the Full Tauri Application
 
@@ -113,7 +113,7 @@ On macOS and Linux, the equivalent directory is `~/.local/share/Odyssee`.
 3. Copy the binary to the local `bin` directory printed by `npm run paths:runtime`.
 4. The app downloads SD-Turbo automatically on first Tauri startup if `sd_turbo.safetensors` is missing. You can still copy the file manually to the local `models` directory to skip the download.
 
-The MVP also works without these files through the offline fallback. The automatic model download needs network access only for missing model files; if it fails or the sidecar binaries are absent, the deterministic text and SVG fallbacks stay active. As soon as the expected binaries and models exist, the Rust commands try to use them and cache successful results locally.
+The automatic model download needs network access only for missing model files. If it fails or the sidecar binaries are absent, generation commands return an explicit error. As soon as the expected binaries and models exist, the Rust commands use them and cache successful results locally.
 
 ## Scripts
 

@@ -1,10 +1,10 @@
 //! Shared runtime constants for local inference, storage, and prompt safety.
 
 /// Safety system instruction injected before every LLM request.
-pub(crate) const SAFETY_PROMPT: &str = "You are a children encyclopedia. Never mention violent, political, or inappropriate content. Stay factual and kind.";
+pub(crate) const SAFETY_PROMPT: &str = "You are an offline children encyclopedia assistant for Odyssée Kids. Answer only the requested topic or question. If a detail is uncertain, say so simply. Never introduce violent, political, sexual, scary, discriminatory, advertising, or inappropriate content. Stay factual, kind, curious, and educational.";
 
 /// Visual style wrapper used for every stable-diffusion.cpp image prompt.
-pub(crate) const STYLE_WRAPPER: &str = "A professional educational illustration of [SUBJECT], sticker style, clean lines, bright colors, white background, high quality for children encyclopedia.";
+pub(crate) const STYLE_WRAPPER: &str = "A bright child-safe educational illustration of [SUBJECT] only, simple encyclopedia sticker style, clean lines, friendly colors, white background, no text, no logos, no people in danger, high quality.";
 
 /// SQLite database file created inside the application data directory.
 pub(crate) const DB_FILE_NAME: &str = "odyssee.sqlite";

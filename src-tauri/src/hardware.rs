@@ -1,6 +1,7 @@
 //! Hardware detection and accelerator flag selection.
 
 use crate::constants::{SAFETY_PROMPT, STYLE_WRAPPER};
+use crate::i18n::backend_messages;
 use crate::models::{HardwareProfile, RuntimeProfile};
 use crate::paths::{resolve_cache_directory, resolve_model_directory, RuntimePaths};
 use std::env;
@@ -35,7 +36,7 @@ pub(crate) fn detect_hardware_profile() -> HardwareProfile {
     };
   }
 
-  log::info!("Hardware detection selected CPU fallback profile");
+  log::info!("Hardware detection selected CPU profile");
   HardwareProfile {
     hardware: "PC without dedicated GPU".to_string(),
     accelerator: "CPU (AVX2/AVX512 when available)".to_string(),
@@ -44,8 +45,8 @@ pub(crate) fn detect_hardware_profile() -> HardwareProfile {
 }
 
 /// Builds the complete runtime profile sent to the frontend status panel.
-pub(crate) fn build_runtime_profile() -> RuntimeProfile {
-  let hardware_profile = detect_hardware_profile();
+pub(crate) fn build_runtime_profile(locale: &str) -> RuntimeProfile {
+  let hardware_profile = localized_hardware_profile(locale);
   let paths = RuntimePaths::resolve();
   let (llm_flags, image_flags) = accelerator_flags(&hardware_profile.accelerator);
 
@@ -65,6 +66,23 @@ pub(crate) fn build_runtime_profile() -> RuntimeProfile {
     image_model: paths.image_model.display().to_string(),
     database_path: paths.database_path.display().to_string(),
   }
+}
+
+fn localized_hardware_profile(locale: &str) -> HardwareProfile {
+  let mut hardware_profile = detect_hardware_profile();
+  let messages = backend_messages(locale).hardware;
+
+  match hardware_profile.accelerator.as_str() {
+    "Metal" => hardware_profile.expected_performance = messages.very_smooth,
+    "CUDA" => hardware_profile.expected_performance = messages.near_instant,
+    "Vulkan" => hardware_profile.expected_performance = messages.good_fluidity,
+    _ => {
+      hardware_profile.hardware = messages.pc_without_gpu;
+      hardware_profile.expected_performance = messages.cpu_performance;
+    }
+  }
+
+  hardware_profile
 }
 
 fn accelerator_flags(accelerator: &str) -> (Vec<String>, Vec<String>) {

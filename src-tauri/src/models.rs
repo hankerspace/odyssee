@@ -34,7 +34,16 @@ pub(crate) struct HardwareProfile {
 pub(crate) struct ArticleRequest {
     pub(crate) article_id: String,
     pub(crate) locale: Option<String>,
+    pub(crate) age_range: Option<String>,
     pub(crate) question: Option<String>,
+}
+
+/// Frontend request payload for category-level generation commands.
+#[derive(Deserialize)]
+pub(crate) struct DomainRequest {
+    pub(crate) domain_id: String,
+    pub(crate) locale: Option<String>,
+    pub(crate) age_range: Option<String>,
 }
 
 /// Root catalog payload returned to the frontend.
@@ -55,7 +64,7 @@ pub(crate) struct DomainDto {
 }
 
 /// Localized section entry pointing to an article.
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub(crate) struct SectionDto {
     pub(crate) id: String,
     pub(crate) name: String,
@@ -82,7 +91,27 @@ pub(crate) struct GeneratedArticle {
     pub(crate) cached: bool,
 }
 
-/// Generated or fallback illustration metadata and cache status.
+/// Generated curiosity questions and their provenance.
+#[derive(Serialize)]
+pub(crate) struct GeneratedQuestions {
+    pub(crate) article_id: String,
+    pub(crate) questions: Vec<String>,
+    pub(crate) source: String,
+    pub(crate) prompt: String,
+    pub(crate) cached: bool,
+}
+
+/// Generated category subcategories and their provenance.
+#[derive(Serialize)]
+pub(crate) struct GeneratedSubcategories {
+    pub(crate) domain_id: String,
+    pub(crate) sections: Vec<SectionDto>,
+    pub(crate) source: String,
+    pub(crate) prompt: String,
+    pub(crate) cached: bool,
+}
+
+/// Generated illustration metadata and cache status.
 #[derive(Serialize)]
 pub(crate) struct GeneratedImage {
     pub(crate) article_id: String,

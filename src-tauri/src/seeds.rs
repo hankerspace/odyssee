@@ -32,7 +32,7 @@ pub(crate) struct ArticleSeed {
   pub(crate) questions_en: [&'static str; 3],
 }
 
-pub(crate) const DOMAINS: [DomainSeed; 6] = [
+pub(crate) const DOMAINS: [DomainSeed; 8] = [
   DomainSeed {
     id: "nature",
     icon: "Trees",
@@ -87,9 +87,27 @@ pub(crate) const DOMAINS: [DomainSeed; 6] = [
     welcome_fr: "Bienvenue créateur ! Les sons, les couleurs et les formes racontent des histoires sans écran.",
     welcome_en: "Welcome creator! Sounds, colors, and shapes tell stories without screens.",
   },
+  DomainSeed {
+    id: "earth",
+    icon: "Compass",
+    color: "from-lime-400 to-emerald-500",
+    name_fr: "Terre & météo",
+    name_en: "Earth & Weather",
+    welcome_fr: "Bienvenue géologue ! Les roches, les nuages et l'eau expliquent comment notre planète change doucement.",
+    welcome_en: "Welcome geologist! Rocks, clouds, and water explain how our planet slowly changes.",
+  },
+  DomainSeed {
+    id: "everyday-life",
+    icon: "BookOpen",
+    color: "from-sky-400 to-violet-500",
+    name_fr: "Vie quotidienne",
+    name_en: "Everyday Life",
+    welcome_fr: "Bienvenue observateur ! Les objets, lieux et gestes du quotidien cachent beaucoup de sciences et d'histoire.",
+    welcome_en: "Welcome observer! Everyday objects, places, and habits hide plenty of science and history.",
+  },
 ];
 
-pub(crate) const SECTIONS: [SectionSeed; 18] = [
+pub(crate) const SECTIONS: [SectionSeed; 24] = [
   SectionSeed { id: "animals", domain_id: "nature", article_id: "arctic-fox", icon: "PawPrint", name_fr: "Animaux", name_en: "Animals" },
   SectionSeed { id: "oceans", domain_id: "nature", article_id: "coral-reef", icon: "Waves", name_fr: "Océans", name_en: "Oceans" },
   SectionSeed { id: "forests", domain_id: "nature", article_id: "redwood", icon: "TreePine", name_fr: "Forêts", name_en: "Forests" },
@@ -108,9 +126,15 @@ pub(crate) const SECTIONS: [SectionSeed; 18] = [
   SectionSeed { id: "music", domain_id: "arts", article_id: "violin", icon: "Music", name_fr: "Musique", name_en: "Music" },
   SectionSeed { id: "painting", domain_id: "arts", article_id: "watercolor", icon: "Brush", name_fr: "Peinture", name_en: "Painting" },
   SectionSeed { id: "sculpture", domain_id: "arts", article_id: "marble", icon: "Gem", name_fr: "Sculpture", name_en: "Sculpture" },
+  SectionSeed { id: "rocks", domain_id: "earth", article_id: "volcano", icon: "Gem", name_fr: "Roches", name_en: "Rocks" },
+  SectionSeed { id: "weather", domain_id: "earth", article_id: "clouds", icon: "Sun", name_fr: "Météo", name_en: "Weather" },
+  SectionSeed { id: "water-cycle", domain_id: "earth", article_id: "water-cycle", icon: "Waves", name_fr: "Cycle de l'eau", name_en: "Water Cycle" },
+  SectionSeed { id: "food", domain_id: "everyday-life", article_id: "bread", icon: "HeartPulse", name_fr: "Alimentation", name_en: "Food" },
+  SectionSeed { id: "places", domain_id: "everyday-life", article_id: "library", icon: "BookOpen", name_fr: "Lieux utiles", name_en: "Useful Places" },
+  SectionSeed { id: "recycling", domain_id: "everyday-life", article_id: "recycling", icon: "Trees", name_fr: "Gestes responsables", name_en: "Responsible Habits" },
 ];
 
-pub(crate) const ARTICLES: [ArticleSeed; 18] = [
+pub(crate) const ARTICLES: [ArticleSeed; 24] = [
   ArticleSeed { id: "arctic-fox", title_fr: "Renard polaire", title_en: "Arctic Fox", summary_fr: "Le renard polaire vit dans la toundra froide. Sa fourrure épaisse, ses petites oreilles et ses pattes poilues l'aident à garder la chaleur. Il change parfois de couleur selon la saison pour mieux se cacher.", summary_en: "The arctic fox lives in cold tundra. Thick fur, small ears, and furry paws help it keep heat. Its coat can change color with the seasons for camouflage.", questions_fr: ["Comment reste-t-il au chaud en hiver ?", "Pourquoi son pelage change-t-il ?", "Que mange-t-il dans la toundra ?"], questions_en: ["How does it stay warm in winter?", "Why does its coat change color?", "What does it eat in the tundra?"] },
   ArticleSeed { id: "coral-reef", title_fr: "Récif corallien", title_en: "Coral Reef", summary_fr: "Un récif corallien ressemble à une ville sous-marine. De minuscules animaux appelés coraux construisent des abris où poissons, crustacés et plantes marines vivent ensemble.", summary_en: "A coral reef is like an underwater city. Tiny animals called corals build shelters where fish, crustaceans, and sea plants live together.", questions_fr: ["Pourquoi les récifs sont-ils colorés ?", "Comment les coraux construisent-ils ?", "Comment peut-on les protéger ?"], questions_en: ["Why are reefs colorful?", "How do corals build reefs?", "How can we protect them?"] },
   ArticleSeed { id: "redwood", title_fr: "Séquoia géant", title_en: "Redwood Tree", summary_fr: "Les séquoias font partie des arbres les plus hauts du monde. Leur écorce épaisse les protège et leurs forêts abritent de nombreux animaux.", summary_en: "Redwoods are among the tallest trees on Earth. Thick bark protects them, and their forests shelter many animals.", questions_fr: ["Jusqu'à quelle hauteur peuvent-ils pousser ?", "Pourquoi leur écorce est-elle épaisse ?", "Où vivent les séquoias ?"], questions_en: ["How tall can they grow?", "Why is their bark thick?", "Where do redwoods live?"] },
@@ -129,4 +153,10 @@ pub(crate) const ARTICLES: [ArticleSeed; 18] = [
   ArticleSeed { id: "violin", title_fr: "Violon", title_en: "Violin", summary_fr: "Le violon produit un son quand ses cordes vibrent. L'archet frotte les cordes et le corps en bois rend le son plus fort et plus riche.", summary_en: "A violin makes sound when its strings vibrate. The bow rubs the strings, and the wooden body makes the sound louder and richer.", questions_fr: ["Pourquoi l'archet crée-t-il un son ?", "Combien de cordes possède-t-il ?", "Qu'est-ce qu'un orchestre ?"], questions_en: ["Why does the bow make sound?", "How many strings does it have?", "What is an orchestra?"] },
   ArticleSeed { id: "watercolor", title_fr: "Aquarelle", title_en: "Watercolor", summary_fr: "L'aquarelle utilise de l'eau et des pigments pour créer des couleurs transparentes. Les artistes superposent les couches pour obtenir de la lumière et des nuances.", summary_en: "Watercolor uses water and pigments to create transparent colors. Artists layer washes to make light and shades.", questions_fr: ["Comment mélange-t-on les couleurs ?", "Pourquoi le papier compte-t-il ?", "Qu'est-ce qu'un lavis ?"], questions_en: ["How do artists blend colors?", "Why does paper matter?", "What is a wash?"] },
   ArticleSeed { id: "marble", title_fr: "Sculpture en marbre", title_en: "Marble Sculpture", summary_fr: "Une sculpture en marbre naît quand un artiste retire peu à peu de la pierre avec des outils. Chaque geste révèle une forme cachée.", summary_en: "A marble sculpture is made as an artist slowly removes stone with tools. Each movement reveals a hidden shape.", questions_fr: ["Quels outils utilise-t-on ?", "Pourquoi choisir le marbre ?", "Combien de temps peut-elle durer ?"], questions_en: ["What tools are used?", "Why choose marble?", "How long can it last?"] },
+  ArticleSeed { id: "volcano", title_fr: "Volcan", title_en: "Volcano", summary_fr: "Un volcan est une ouverture de la Terre par laquelle de la roche fondue peut sortir. Les volcans construisent parfois de nouvelles montagnes et enrichissent certains sols.", summary_en: "A volcano is an opening in Earth where melted rock can come out. Volcanoes can build new mountains and enrich some soils.", questions_fr: ["Pourquoi un volcan entre-t-il en éruption ?", "Qu'est-ce que la lave ?", "Comment les scientifiques surveillent-ils les volcans ?"], questions_en: ["Why does a volcano erupt?", "What is lava?", "How do scientists monitor volcanoes?"] },
+  ArticleSeed { id: "clouds", title_fr: "Nuages", title_en: "Clouds", summary_fr: "Les nuages sont formés de minuscules gouttes d'eau ou cristaux de glace. Leur forme aide à comprendre le temps qu'il fait et celui qui arrive.", summary_en: "Clouds are made of tiny water drops or ice crystals. Their shapes help us understand current and upcoming weather.", questions_fr: ["Comment les nuages se forment-ils ?", "Pourquoi ont-ils des formes différentes ?", "Quels nuages annoncent la pluie ?"], questions_en: ["How do clouds form?", "Why do they have different shapes?", "Which clouds can bring rain?"] },
+  ArticleSeed { id: "water-cycle", title_fr: "Cycle de l'eau", title_en: "Water Cycle", summary_fr: "L'eau voyage entre les océans, l'air, les nuages, la pluie, les rivières et les sols. Ce cycle aide les plantes, les animaux et les humains à vivre.", summary_en: "Water travels between oceans, air, clouds, rain, rivers, and soils. This cycle helps plants, animals, and people live.", questions_fr: ["Pourquoi l'eau s'évapore-t-elle ?", "Comment la pluie revient-elle ?", "Pourquoi économiser l'eau ?"], questions_en: ["Why does water evaporate?", "How does rain come back?", "Why should we save water?"] },
+  ArticleSeed { id: "bread", title_fr: "Pain", title_en: "Bread", summary_fr: "Le pain se prépare avec de la farine, de l'eau, du sel et souvent de la levure. La levure produit de petites bulles qui aident la pâte à gonfler.", summary_en: "Bread is made with flour, water, salt, and often yeast. Yeast makes tiny bubbles that help the dough rise.", questions_fr: ["Pourquoi la pâte gonfle-t-elle ?", "D'où vient la farine ?", "Comment le four transforme-t-il le pain ?"], questions_en: ["Why does dough rise?", "Where does flour come from?", "How does the oven change bread?"] },
+  ArticleSeed { id: "library", title_fr: "Bibliothèque", title_en: "Library", summary_fr: "Une bibliothèque rassemble des livres et des ressources pour apprendre, rêver et chercher des informations. On peut y lire, emprunter et demander conseil.", summary_en: "A library gathers books and resources for learning, imagining, and finding information. People can read, borrow, and ask for guidance there.", questions_fr: ["Comment les livres sont-ils classés ?", "Pourquoi partager les livres ?", "Que fait une bibliothécaire ou un bibliothécaire ?"], questions_en: ["How are books organized?", "Why share books?", "What does a librarian do?"] },
+  ArticleSeed { id: "recycling", title_fr: "Recyclage", title_en: "Recycling", summary_fr: "Le recyclage transforme certains déchets en nouvelles matières. Trier correctement aide à économiser des ressources et à garder les lieux plus propres.", summary_en: "Recycling turns some waste into new materials. Sorting correctly helps save resources and keep places cleaner.", questions_fr: ["Pourquoi faut-il trier les déchets ?", "Que devient une bouteille recyclée ?", "Comment réduire les déchets à la maison ?"], questions_en: ["Why should waste be sorted?", "What can a recycled bottle become?", "How can we reduce waste at home?"] },
 ];
