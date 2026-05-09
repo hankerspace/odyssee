@@ -4,15 +4,17 @@ use crate::generation::{
     build_article_prompt, fallback_article_text, image_prompt, now_millis, write_placeholder_svg,
 };
 use crate::hardware::{build_runtime_profile, detect_hardware_profile};
-use crate::model_download::{get_model_status_for_paths, prepare_models_for_paths};
+use crate::model_download::{
+    get_model_status_for_paths, image_model_ready, prepare_models_for_paths,
+};
 use crate::models::{
-    ArticleRequest, CatalogResponse, GeneratedArticle, GeneratedImage, HardwareProfile,
+    ArticleRequest, CachePurgeResult, CatalogResponse, GeneratedArticle, GeneratedImage, HardwareProfile,
     ModelPreparationStatus, ModelStatus, RuntimeProfile,
 };
-use crate::paths::{ensure_storage, executable_exists, RuntimePaths};
+use crate::paths::{ensure_storage, executable_exists, image_sidecar_ready, RuntimePaths};
 use crate::sidecars::{run_llama_sidecar, run_stable_diffusion_sidecar};
 use crate::storage::{
-    load_article, load_catalog, normalize_locale, open_database, read_cache, write_cache,
+    clear_cache, load_article, load_catalog, normalize_locale, open_database, read_cache, write_cache,
 };
 use std::fs;
 use std::path::Path;
@@ -77,6 +79,22 @@ pub(crate) fn prepare_models() -> Result<ModelPreparationStatus, String> {
     Ok(status)
 }
 
+/// Clears generated text/image cache entries and removes cached image files.
+#[tauri::command]
+pub(crate) fn clear_generation_cache() -> Result<CachePurgeResult, String> {
+    let paths = RuntimePaths::resolve();
+    let connection = open_database(&paths)?;
+    let entries_deleted = clear_cache(&connection)?;
+    let files_deleted = clear_image_cache_files(&paths.image_cache_dir)?;
+    log::info!(
+        "Generation cache cleared: entries_deleted={entries_deleted}, files_deleted={files_deleted}"
+    );
+    Ok(CachePurgeResult {
+        entries_deleted,
+        files_deleted,
+    })
+}
+
 /// Loads the localized deterministic catalog from SQLite.
 #[tauri::command]
 pub(crate) fn get_catalog(locale: Option<String>) -> Result<CatalogResponse, String> {
@@ -98,12 +116,28 @@ pub(crate) fn generate_article(request: ArticleRequest) -> Result<GeneratedArtic
     let paths = RuntimePaths::resolve();
     let connection = open_database(&paths)?;
     let language = normalize_locale(request.locale.as_deref());
-    log::info!(
-        "Article generation requested: article_id='{}', locale='{language}'",
-        request.article_id
-    );
     let article = load_article(&connection, &request.article_id, language)?;
-    let cache_key = format!("text:{}:{}", language, article.id);
+    let curiosity_question = request
+        .question
+        .as_deref()
+        .map(str::trim)
+        .filter(|question| !question.is_empty())
+        .filter(|question| {
+            article
+                .questions
+                .iter()
+                .any(|candidate| candidate.trim() == *question)
+        })
+        .map(str::to_string);
+    log::info!(
+        "Article generation requested: article_id='{}', locale='{language}', curiosity_question={}",
+        article.id,
+        curiosity_question.as_deref().unwrap_or("none")
+    );
+    let cache_key = curiosity_question.as_deref().map_or_else(
+        || format!("text:{}:{}", language, article.id),
+        |question| format!("text:{}:{}:question:{}", language, article.id, question),
+    );
 
     if let Some(text) = read_cache(&connection, &cache_key)? {
         log::info!(
@@ -119,24 +153,33 @@ pub(crate) fn generate_article(request: ArticleRequest) -> Result<GeneratedArtic
         });
     }
 
-    let prompt = build_article_prompt(&article, language);
+    let prompt = build_article_prompt(&article, language, curiosity_question.as_deref());
     let profile = get_runtime_profile();
     let llm_ready = executable_exists(&paths.llm_binary) && paths.llm_model.exists();
-    let generated_text = if llm_ready {
+    let (generated_text, source) = if llm_ready {
         log::info!("Running llama.cpp sidecar for article_id='{}'", article.id);
-        run_llama_sidecar(&paths, &profile.llm_flags, &prompt).unwrap_or_else(|error| {
-            log::warn!(
-                "llama.cpp sidecar failed for article_id='{}'; using fallback text: {error}",
-                article.id
-            );
-            fallback_article_text(&article, language, Some(&error))
-        })
+        match run_llama_sidecar(&paths, &profile.llm_flags, &prompt) {
+            Ok(text) => (text, "llama.cpp"),
+            Err(error) => {
+                log::warn!(
+                    "llama.cpp sidecar failed for article_id='{}'; using fallback text: {error}",
+                    article.id
+                );
+                (
+                    fallback_article_text(&article, language, curiosity_question.as_deref(), Some(&error)),
+                    "fallback",
+                )
+            }
+        }
     } else {
         log::info!(
             "LLM sidecar or model missing for article_id='{}'; using fallback text",
             article.id
         );
-        fallback_article_text(&article, language, None)
+        (
+            fallback_article_text(&article, language, curiosity_question.as_deref(), None),
+            "fallback",
+        )
     };
 
     write_cache(&connection, &cache_key, &generated_text)?;
@@ -148,7 +191,7 @@ pub(crate) fn generate_article(request: ArticleRequest) -> Result<GeneratedArtic
     Ok(GeneratedArticle {
         article,
         generated_text,
-        source: if llm_ready { "llama.cpp" } else { "fallback" }.to_string(),
+        source: source.to_string(),
         prompt,
         cached: false,
     })
@@ -190,7 +233,7 @@ pub(crate) fn generate_image(request: ArticleRequest) -> Result<GeneratedImage, 
         .join(format!("{}-{}.svg", article.id, now_millis()));
     let profile = get_runtime_profile();
 
-    let source = if executable_exists(&paths.image_binary) && paths.image_model.exists() {
+    let source = if image_sidecar_ready(&paths) && image_model_ready(&paths.image_model) {
         let generated_path = output_path.with_extension("png");
         log::info!(
             "Running stable-diffusion.cpp sidecar for article_id='{}'",
@@ -245,4 +288,52 @@ pub(crate) fn generate_image(request: ArticleRequest) -> Result<GeneratedImage, 
         image_path: output_path.display().to_string(),
         cached: false,
     })
+}
+
+fn clear_image_cache_files(image_cache_dir: &Path) -> Result<usize, String> {
+    if !image_cache_dir.exists() {
+        return Ok(0);
+    }
+
+    let mut files_deleted = 0;
+    for entry in fs::read_dir(image_cache_dir).map_err(|error| error.to_string())? {
+        let path = entry.map_err(|error| error.to_string())?.path();
+        if path.is_file() {
+            fs::remove_file(&path).map_err(|error| error.to_string())?;
+            files_deleted += 1;
+        }
+    }
+    Ok(files_deleted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clear_image_cache_files_ignores_missing_directory() {
+        let missing_dir = std::env::temp_dir().join(format!("odyssee-missing-cache-{}", now_millis()));
+
+        let deleted = clear_image_cache_files(&missing_dir).expect("clear missing cache dir");
+
+        assert_eq!(deleted, 0);
+    }
+
+    #[test]
+    fn clear_image_cache_files_removes_only_files() {
+        let cache_dir = std::env::temp_dir().join(format!("odyssee-cache-{}", now_millis()));
+        let nested_dir = cache_dir.join("nested");
+        fs::create_dir_all(&nested_dir).expect("create nested cache dir");
+        fs::write(cache_dir.join("image.svg"), "svg").expect("write svg");
+        fs::write(cache_dir.join("image.png"), "png").expect("write png");
+
+        let deleted = clear_image_cache_files(&cache_dir).expect("clear image cache files");
+
+        assert_eq!(deleted, 2);
+        assert!(!cache_dir.join("image.svg").exists());
+        assert!(!cache_dir.join("image.png").exists());
+        assert!(nested_dir.exists());
+
+        fs::remove_dir_all(&cache_dir).expect("remove cache dir");
+    }
 }

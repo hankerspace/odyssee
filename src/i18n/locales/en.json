@@ -20,6 +20,9 @@
       "accelerator": "Accelerator",
       "performance": "Expected performance",
       "modelPath": "Model storage",
+      "clearCache": "Clear generated cache",
+      "cacheCleared": "Cache cleared: {entries} entry/entries, {files} file(s).",
+      "cacheClearError": "Unable to clear cache: {error}",
       "promptGuard": "Prompt Guard",
       "styleWrapper": "Style Wrapper"
     }

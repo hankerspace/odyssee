@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import {
@@ -83,12 +83,17 @@ const selectedDomain = ref(null)
 const selectedSection = ref(null)
 const articleResult = ref(null)
 const imageResult = ref(null)
+const selectedCuriosityQuestion = ref('')
 const errorMessage = ref('')
 const loadingCatalog = ref(false)
 const loadingArticle = ref(false)
 const loadingImage = ref(false)
 const preparingModels = ref(false)
+const clearingCache = ref(false)
+const modelPreparationMessage = ref('')
 const modelPreparationError = ref('')
+const systemActionMessage = ref('')
+const systemActionError = ref('')
 const systemProfile = ref({
   hardware: 'Unknown',
   accelerator: 'Unknown',
@@ -177,12 +182,65 @@ const runtimeAssets = computed(() => {
       detail: downloads.llm,
     },
     {
-      label: 'Modèle image FLUX.2 Klein',
+      label: 'Modèle image SD-Turbo',
       ready: modelStatus.value.image_model_ready,
       path: modelStatus.value.image_model,
       detail: downloads.image,
     },
   ]
+})
+
+const readyRuntimeAssetCount = computed(() => runtimeAssets.value.filter((asset) => asset.ready).length)
+
+const runtimePreparationSummary = computed(() => {
+  const total = runtimeAssets.value.length
+  const readyCount = readyRuntimeAssetCount.value
+
+  if (preparingModels.value) {
+    return `${modelPreparationMessage.value} ${readyCount}/${total} ressource(s) déjà prête(s).`
+  }
+
+  if (readyCount === total) {
+    return 'Runtime local prêt : les générations peuvent utiliser les sidecars.'
+  }
+
+  return `${readyCount}/${total} ressource(s) prête(s) : les fallbacks hors ligne prennent le relais si besoin.`
+})
+
+const runtimeProgressPercent = computed(() => {
+  if (!runtimeAssets.value.length) {
+    return 0
+  }
+
+  return Math.round((readyRuntimeAssetCount.value / runtimeAssets.value.length) * 100)
+})
+
+const articleGenerationFeedback = computed(() => {
+  if (loadingArticle.value) {
+    return modelStatus.value.llm_ready
+      ? 'Génération du texte avec le LLM local…'
+      : 'LLM local indisponible : préparation d’une fiche sûre via fallback hors ligne…'
+  }
+
+  if (articleResult.value?.source) {
+    return `Texte prêt · ${articleResult.value.source}`
+  }
+
+  return 'Texte en attente de génération.'
+})
+
+const imageGenerationFeedback = computed(() => {
+  if (loadingImage.value) {
+    return modelStatus.value.image_ready
+      ? 'Génération de l’illustration avec le moteur image local…'
+      : 'Moteur image indisponible : création d’une illustration fallback hors ligne…'
+  }
+
+  if (imageResult.value?.source) {
+    return `Image prête · ${imageResult.value.source}`
+  }
+
+  return 'Illustration en attente de génération.'
 })
 
 function runtimeAssetState(asset) {
@@ -195,6 +253,22 @@ function runtimeAssetState(asset) {
   }
 
   return preparingModels.value ? 'Préparation' : 'Fallback actif'
+}
+
+function runtimeAssetFeedback(asset) {
+  if (asset.detail?.error) {
+    return 'Préparation impossible pour cette ressource : le fallback local reste disponible.'
+  }
+
+  if (asset.ready) {
+    return asset.detail?.downloaded ? 'Installé pendant ce lancement.' : 'Déjà présent dans le stockage local.'
+  }
+
+  if (preparingModels.value) {
+    return 'Téléchargement ou vérification en cours, selon l’état local de cette ressource.'
+  }
+
+  return 'Ressource absente pour l’instant : fonctionnement en fallback hors ligne.'
 }
 
 function runtimeAssetStateClass(asset) {
@@ -222,6 +296,7 @@ function selectDomain(domain) {
   selectedSection.value = null
   articleResult.value = null
   imageResult.value = null
+  selectedCuriosityQuestion.value = ''
   errorMessage.value = ''
 }
 
@@ -229,6 +304,7 @@ async function selectSection(section) {
   selectedSection.value = section
   articleResult.value = null
   imageResult.value = null
+  selectedCuriosityQuestion.value = ''
   errorMessage.value = ''
 
   await Promise.all([generateArticle(section.article_id), generateImage(section.article_id)])
@@ -238,6 +314,7 @@ function backToTopics() {
   selectedSection.value = null
   articleResult.value = null
   imageResult.value = null
+  selectedCuriosityQuestion.value = ''
 }
 
 function backToDomains() {
@@ -245,17 +322,22 @@ function backToDomains() {
   selectedSection.value = null
   articleResult.value = null
   imageResult.value = null
+  selectedCuriosityQuestion.value = ''
 }
 
 async function loadSystemProfile() {
   try {
+    systemActionError.value = ''
     systemProfile.value = await invoke('get_runtime_profile')
     modelStatus.value = await invoke('get_model_status')
 
     if (!modelStatus.value.llm_ready || !modelStatus.value.image_ready) {
       preparingModels.value = true
+      modelPreparationMessage.value = 'Téléchargement et installation du runtime local en cours…'
       modelPreparationError.value = ''
+      await nextTick()
       const downloads = await invoke('prepare_models')
+      modelPreparationMessage.value = 'Vérification finale des ressources locales…'
       const refreshedStatus = await invoke('get_model_status')
       modelStatus.value = { ...refreshedStatus, downloads }
     }
@@ -273,6 +355,27 @@ async function loadSystemProfile() {
     modelPreparationError.value = `Téléchargement automatique indisponible dans ce mode: ${error}`
   } finally {
     preparingModels.value = false
+    modelPreparationMessage.value = ''
+  }
+}
+
+async function clearGenerationCache() {
+  clearingCache.value = true
+  systemActionMessage.value = ''
+  systemActionError.value = ''
+
+  try {
+    const result = await invoke('clear_generation_cache')
+    systemActionMessage.value = t('app.system.cacheCleared', {
+      entries: result.entries_deleted,
+      files: result.files_deleted,
+    })
+    articleResult.value = null
+    imageResult.value = null
+  } catch (error) {
+    systemActionError.value = t('app.system.cacheClearError', { error })
+  } finally {
+    clearingCache.value = false
   }
 }
 
@@ -295,12 +398,18 @@ async function loadCatalog() {
   }
 }
 
-async function generateArticle(articleId) {
+async function generateArticle(articleId, curiosityQuestion = '') {
   loadingArticle.value = true
 
   try {
+    const request = { article_id: articleId, locale: locale.value }
+
+    if (curiosityQuestion) {
+      request.question = curiosityQuestion
+    }
+
     articleResult.value = await invoke('generate_article', {
-      request: { article_id: articleId, locale: locale.value },
+      request,
     })
   } catch (error) {
     errorMessage.value = `Impossible de générer le texte: ${error}`
@@ -329,9 +438,19 @@ async function regenerateCurrentArticle() {
   }
 
   await Promise.all([
-    generateArticle(selectedSection.value.article_id),
+    generateArticle(selectedSection.value.article_id, selectedCuriosityQuestion.value),
     generateImage(selectedSection.value.article_id),
   ])
+}
+
+async function answerCuriosityQuestion(question) {
+  if (!selectedSection.value || loadingArticle.value) {
+    return
+  }
+
+  selectedCuriosityQuestion.value = question
+  errorMessage.value = ''
+  await generateArticle(selectedSection.value.article_id, question)
 }
 
 onMounted(() => {
@@ -351,7 +470,7 @@ watch(locale, async () => {
 <template>
   <div class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
     <div v-if="preparingModels" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 px-4 backdrop-blur-sm">
-      <section class="w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+      <section class="w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200" role="status" aria-live="polite">
         <div class="flex items-start gap-4">
           <span class="rounded-2xl bg-blue-50 p-3 text-blue-700">
             <LoaderCircle class="h-7 w-7 animate-spin" />
@@ -363,6 +482,23 @@ watch(locale, async () => {
               Odyssée Kids récupère les binaires adaptés à cette plateforme, puis vérifie les modèles locaux. Les fallbacks hors ligne restent disponibles si une étape échoue.
             </p>
           </div>
+        </div>
+
+        <div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm text-blue-900 ring-1 ring-blue-100">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="inline-flex items-center gap-2 font-semibold">
+              <LoaderCircle class="h-4 w-4 animate-spin" /> {{ runtimePreparationSummary }}
+            </p>
+            <span class="rounded-full bg-white px-2 py-1 text-xs font-bold text-blue-700">
+              {{ readyRuntimeAssetCount }}/{{ runtimeAssets.length }} prêt(s)
+            </span>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-white">
+            <div class="h-full rounded-full bg-blue-500 transition-all" :style="{ width: `${runtimeProgressPercent}%` }" />
+          </div>
+          <p class="mt-2 text-xs text-blue-700">
+            Cette étape peut durer plusieurs minutes au premier lancement. Tu peux suivre chaque ressource ci-dessous.
+          </p>
         </div>
 
         <div class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -389,6 +525,7 @@ watch(locale, async () => {
               </span>
             </div>
             <p class="mt-2 break-all text-xs text-slate-500">{{ asset.path }}</p>
+            <p class="mt-1 text-xs text-slate-600">{{ runtimeAssetFeedback(asset) }}</p>
             <p v-if="asset.detail?.url" class="mt-1 break-all text-xs text-slate-400">{{ asset.detail.url }}</p>
             <p v-if="asset.detail?.error" class="mt-2 text-xs font-medium text-amber-700">{{ asset.detail.error }}</p>
           </li>
@@ -516,6 +653,21 @@ watch(locale, async () => {
             </div>
           </div>
 
+          <div
+            v-if="loadingArticle || loadingImage"
+            class="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900 ring-1 ring-blue-100"
+            role="status"
+            aria-live="polite"
+          >
+            <p class="inline-flex items-center gap-2 font-semibold">
+              <LoaderCircle class="h-4 w-4 animate-spin" /> Génération locale en cours
+            </p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <p class="rounded-xl bg-white/70 px-3 py-2">{{ articleGenerationFeedback }}</p>
+              <p class="rounded-xl bg-white/70 px-3 py-2">{{ imageGenerationFeedback }}</p>
+            </div>
+          </div>
+
           <div class="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
             <div class="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-100 to-purple-100 p-4 ring-1 ring-blue-100">
               <div class="flex items-center justify-between text-sm font-medium text-blue-700">
@@ -531,6 +683,7 @@ watch(locale, async () => {
               <div v-else class="mt-3 grid aspect-[4/3] place-items-center rounded-2xl bg-white/70 text-sm text-slate-500">
                 Préparation de l'illustration…
               </div>
+              <p class="mt-3 text-xs font-medium text-blue-700">{{ imageGenerationFeedback }}</p>
               <p class="mt-3 text-xs text-slate-600">{{ imageResult?.prompt }}</p>
             </div>
 
@@ -542,6 +695,7 @@ watch(locale, async () => {
               <p class="whitespace-pre-line text-base leading-relaxed text-slate-800">
                 {{ articleResult?.generated_text ?? article?.summary ?? 'Le moteur prépare une fiche sûre et bienveillante.' }}
               </p>
+              <p class="mt-4 text-xs font-medium text-blue-700">{{ articleGenerationFeedback }}</p>
             </article>
           </div>
 
@@ -554,7 +708,10 @@ watch(locale, async () => {
                 v-for="question in article?.questions ?? []"
                 :key="question"
                 type="button"
-                class="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700 transition hover:bg-blue-100 hover:text-blue-900"
+                class="rounded-full px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+                :class="selectedCuriosityQuestion === question ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-blue-100 hover:text-blue-900'"
+                :disabled="loadingArticle"
+                @click="answerCuriosityQuestion(question)"
               >
                 {{ question }}
               </button>
@@ -567,7 +724,7 @@ watch(locale, async () => {
             :disabled="loadingArticle || loadingImage"
             @click="regenerateCurrentArticle"
           >
-            Régénérer depuis les sidecars / cache
+            {{ loadingArticle || loadingImage ? 'Génération en cours…' : 'Régénérer depuis les sidecars / cache' }}
           </button>
         </div>
       </section>
@@ -600,6 +757,20 @@ watch(locale, async () => {
             <dd class="break-all text-slate-900">{{ systemProfile.database_path }}</dd>
           </div>
         </dl>
+
+        <div class="mt-5 space-y-2">
+          <button
+            type="button"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="clearingCache"
+            @click="clearGenerationCache"
+          >
+            <LoaderCircle v-if="clearingCache" class="h-4 w-4 animate-spin" />
+            {{ t('app.system.clearCache') }}
+          </button>
+          <p v-if="systemActionMessage" class="text-xs font-medium text-emerald-700">{{ systemActionMessage }}</p>
+          <p v-if="systemActionError" class="text-xs font-medium text-amber-700">{{ systemActionError }}</p>
+        </div>
 
         <div class="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
           <p v-if="preparingModels" class="inline-flex items-center gap-1 font-medium text-blue-700">

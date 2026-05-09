@@ -12,38 +12,71 @@ pub(crate) fn image_prompt(title: &str) -> String {
 }
 
 /// Builds the child-safe text prompt sent to the optional LLM sidecar.
-pub(crate) fn build_article_prompt(article: &ArticleDto, locale: &str) -> String {
+pub(crate) fn build_article_prompt(
+  article: &ArticleDto,
+  locale: &str,
+  curiosity_question: Option<&str>,
+) -> String {
   log::info!("Building article prompt: article_id='{}', locale='{locale}'", article.id);
   let language_instruction = if locale == "en" {
     "Answer in English for a child aged 6 to 10. Use short paragraphs and end with exactly three curiosity questions."
   } else {
     "Réponds en français pour un enfant de 6 à 10 ans. Utilise des paragraphes courts et termine par exactement trois questions de curiosité."
   };
+  let curiosity_focus = curiosity_question
+    .map(|question| {
+      if locale == "en" {
+        format!("\nSelected curiosity question: {question}\nFocus the explanation on this question.")
+      } else {
+        format!("\nQuestion de curiosité choisie: {question}\nCentre l'explication sur cette question.")
+      }
+    })
+    .unwrap_or_default();
 
   format!(
-    "{SAFETY_PROMPT}\n\n{language_instruction}\n\nSujet: {}\nRésumé fiable: {}\nQuestions proposées: {}",
+    "{SAFETY_PROMPT}\n\n{language_instruction}\n\nSujet: {}\nRésumé fiable: {}\nQuestions proposées: {}{}",
     article.title,
     article.summary,
-    article.questions.join(" | ")
+    article.questions.join(" | "),
+    curiosity_focus
   )
 }
 
-pub(crate) fn fallback_article_text(article: &ArticleDto, locale: &str, sidecar_error: Option<&str>) -> String {
+pub(crate) fn fallback_article_text(
+  article: &ArticleDto,
+  locale: &str,
+  curiosity_question: Option<&str>,
+  sidecar_error: Option<&str>,
+) -> String {
   log::info!("Rendering fallback article text: article_id='{}', locale='{locale}'", article.id);
   let intro = if locale == "en" {
     "Local demo explanation"
   } else {
     "Explication locale de démonstration"
   };
-  let curiosity_label = if locale == "en" { "Curiosity paths" } else { "Pistes de curiosité" };
+  let curiosity_label = if locale == "en" {
+    "Curiosity paths"
+  } else {
+    "Pistes de curiosité"
+  };
   let sidecar_note = sidecar_error
     .map(|error| format!("\n\nFallback mode active: {error}"))
     .unwrap_or_default();
+  let curiosity_answer = curiosity_question
+    .map(|question| {
+      if locale == "en" {
+        format!("\n\nCuriosity question: {question}\nShort answer: {}", article.summary)
+      } else {
+        format!("\n\nQuestion de curiosité: {question}\nRéponse courte: {}", article.summary)
+      }
+    })
+    .unwrap_or_default();
 
   format!(
-    "{intro}: {}\n\n{}\n\n{curiosity_label}:\n• {}\n• {}\n• {}{}",
+    "{intro}: {}\n\n{}{}\n\n{curiosity_label}:\n• {}\n• {}\n• {}{}",
     article.title,
     article.summary,
+    curiosity_answer,
     article.questions.first().cloned().unwrap_or_default(),
     article.questions.get(1).cloned().unwrap_or_default(),
     article.questions.get(2).cloned().unwrap_or_default(),
@@ -51,9 +84,64 @@ pub(crate) fn fallback_article_text(article: &ArticleDto, locale: &str, sidecar_
   )
 }
 
-pub(crate) fn write_placeholder_svg(output_path: &Path, article: &ArticleDto, locale: &str) -> Result<(), String> {
-  log::info!("Writing fallback SVG illustration: article_id='{}', path='{}'", article.id, output_path.display());
-  let label = if locale == "en" { "offline illustration" } else { "illustration hors ligne" };
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn sample_article() -> ArticleDto {
+    ArticleDto {
+      id: "arctic-fox".to_string(),
+      title: "Renard polaire".to_string(),
+      summary: "Son pelage l'aide à rester discret dans la neige.".to_string(),
+      questions: vec![
+        "Pourquoi change-t-il de couleur ?".to_string(),
+        "Que mange-t-il ?".to_string(),
+        "Où vit-il ?".to_string(),
+      ],
+    }
+  }
+
+  #[test]
+  fn article_prompt_focuses_selected_curiosity_question() {
+    let prompt = build_article_prompt(
+      &sample_article(),
+      "fr",
+      Some("Pourquoi change-t-il de couleur ?"),
+    );
+
+    assert!(prompt.contains("Question de curiosité choisie: Pourquoi change-t-il de couleur ?"));
+    assert!(prompt.contains("Centre l'explication sur cette question."));
+  }
+
+  #[test]
+  fn fallback_text_answers_selected_curiosity_question() {
+    let text = fallback_article_text(
+      &sample_article(),
+      "fr",
+      Some("Pourquoi change-t-il de couleur ?"),
+      None,
+    );
+
+    assert!(text.contains("Question de curiosité: Pourquoi change-t-il de couleur ?"));
+    assert!(text.contains("Réponse courte: Son pelage l'aide à rester discret dans la neige."));
+  }
+}
+
+pub(crate) fn write_placeholder_svg(
+  output_path: &Path,
+  article: &ArticleDto,
+  locale: &str,
+) -> Result<(), String> {
+  log::info!(
+    "Writing fallback SVG illustration: article_id='{}', path='{}'",
+    article.id,
+    output_path.display()
+  );
+  let label = if locale == "en" {
+    "offline illustration"
+  } else {
+    "illustration hors ligne"
+  };
   let safe_title = escape_xml(&article.title);
   let safe_label = escape_xml(label);
   let svg = format!(

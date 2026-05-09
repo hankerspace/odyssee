@@ -104,6 +104,14 @@ pub(crate) fn write_cache(connection: &Connection, key: &str, value: &str) -> Re
   Ok(())
 }
 
+pub(crate) fn clear_cache(connection: &Connection) -> Result<usize, String> {
+  let deleted = connection
+    .execute("DELETE FROM cache_entries", [])
+    .map_err(|error| error.to_string())?;
+  log::info!("Cleared {deleted} cache entries");
+  Ok(deleted)
+}
+
 fn initialize_database(connection: &Connection) -> Result<(), String> {
   log::info!("Ensuring SQLite schema and seed data are available");
   connection
@@ -219,4 +227,23 @@ fn load_sections(connection: &Connection, domain_id: &str, locale: &str) -> Resu
 
 fn localized(fr: String, en: String, locale: &str) -> String {
   if locale == "en" { en } else { fr }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn clear_cache_removes_generated_entries() {
+    let connection = Connection::open_in_memory().expect("open in-memory database");
+    initialize_database(&connection).expect("initialize database");
+    write_cache(&connection, "text:fr:arctic-fox", "cached text").expect("write text cache");
+    write_cache(&connection, "image:fr:arctic-fox", "/tmp/image.svg").expect("write image cache");
+
+    let deleted = clear_cache(&connection).expect("clear cache");
+
+    assert_eq!(deleted, 2);
+    assert!(read_cache(&connection, "text:fr:arctic-fox").expect("read text cache").is_none());
+    assert!(read_cache(&connection, "image:fr:arctic-fox").expect("read image cache").is_none());
+  }
 }

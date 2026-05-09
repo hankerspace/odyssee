@@ -20,6 +20,9 @@
       "accelerator": "Accélérateur",
       "performance": "Performance attendue",
       "modelPath": "Stockage des modèles",
+      "clearCache": "Purger le cache généré",
+      "cacheCleared": "Cache purgé : {entries} entrée(s), {files} fichier(s).",
+      "cacheClearError": "Impossible de purger le cache : {error}",
       "promptGuard": "Garde de prompt",
       "styleWrapper": "Style d'illustration"
     }

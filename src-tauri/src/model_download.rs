@@ -2,11 +2,15 @@
 
 use crate::constants::{IMAGE_MODEL_FILE, IMAGE_MODEL_URL, LLM_MODEL_FILE, LLM_MODEL_URL};
 use crate::models::{ModelAssetStatus, ModelPreparationStatus, ModelStatus};
-use crate::paths::{ensure_storage, executable_exists, RuntimePaths};
+use crate::paths::{ensure_storage, executable_exists, image_sidecar_ready, RuntimePaths};
 use serde::Deserialize;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+const UNSUPPORTED_FLUX2_IMAGE_MODEL_ERROR: &str = "FLUX.2 Klein requires separate VAE and LLM companion models; \
+the current image runner only supports single-file stable-diffusion.cpp models.";
+const UNSUPPORTED_FLUX2_IMAGE_MODEL_FILE: &str = "flux-2-klein-base-4b-Q4_0.gguf";
 
 struct ModelAsset {
     label: &'static str,
@@ -44,9 +48,9 @@ struct GitHubReleaseAsset {
 /// Builds the model and sidecar readiness payload without starting downloads.
 pub(crate) fn get_model_status_for_paths(paths: &RuntimePaths) -> ModelStatus {
     let llm_binary_ready = executable_exists(&paths.llm_binary);
-    let image_binary_ready = executable_exists(&paths.image_binary);
+    let image_binary_ready = image_sidecar_ready(paths);
     let llm_model_ready = paths.llm_model.exists();
-    let image_model_ready = paths.image_model.exists();
+    let image_model_ready = image_model_ready(&paths.image_model);
     let llm_ready = llm_binary_ready && llm_model_ready;
     let image_ready = image_binary_ready && image_model_ready;
 
@@ -80,7 +84,7 @@ pub(crate) fn prepare_models_for_paths(
     let llm_binary = prepare_release_binary(&llm_binary_asset(paths));
     let image_binary = prepare_release_binary(&image_binary_asset(paths));
     let llm = prepare_asset(&llm_asset(paths));
-    let image = prepare_asset(&image_asset(paths));
+    let image = prepare_image_asset(&image_asset(paths));
 
     Ok(ModelPreparationStatus {
         llm_binary,
@@ -96,8 +100,12 @@ pub(crate) fn model_preparation_status(paths: &RuntimePaths) -> ModelPreparation
         llm_binary: status_for_release_binary(&llm_binary_asset(paths), false, None),
         image_binary: status_for_release_binary(&image_binary_asset(paths), false, None),
         llm: status_for_model_asset(&llm_asset(paths), false, None),
-        image: status_for_model_asset(&image_asset(paths), false, None),
+        image: status_for_image_asset(&image_asset(paths), false, None),
     }
+}
+
+pub(crate) fn image_model_ready(path: &Path) -> bool {
+    path.exists() && unsupported_image_model_error(path).is_none()
 }
 
 fn llm_binary_asset(paths: &RuntimePaths) -> ReleaseBinaryAsset {
@@ -135,7 +143,7 @@ fn llm_asset(paths: &RuntimePaths) -> ModelAsset {
 
 fn image_asset(paths: &RuntimePaths) -> ModelAsset {
     ModelAsset {
-        label: "Image FLUX.2 Klein",
+        label: "Image SD-Turbo",
         file_name: IMAGE_MODEL_FILE.to_string(),
         url: IMAGE_MODEL_URL.to_string(),
         path: paths.image_model.clone(),
@@ -171,6 +179,47 @@ fn prepare_asset(asset: &ModelAsset) -> ModelAssetStatus {
                 asset.label
             );
             status_for_model_asset(asset, false, Some(error))
+        }
+    }
+}
+
+fn prepare_image_asset(asset: &ModelAsset) -> ModelAssetStatus {
+    if unsupported_image_model_error(&asset.path).is_some() {
+        log::warn!(
+            "Image model is not compatible with the current single-file runner: path='{}'",
+            asset.path.display()
+        );
+        return status_for_image_asset(asset, false, None);
+    }
+
+    if asset.path.exists() {
+        log::info!(
+            "Model asset already present: label='{}', path='{}'",
+            asset.label,
+            asset.path.display()
+        );
+        return status_for_image_asset(asset, false, None);
+    }
+
+    log::info!(
+        "Image model asset missing; attempting explicit download: label='{}'",
+        asset.label
+    );
+    match download_asset(asset) {
+        Ok(()) => {
+            log::info!(
+                "Image model asset downloaded: label='{}', path='{}'",
+                asset.label,
+                asset.path.display()
+            );
+            status_for_image_asset(asset, true, None)
+        }
+        Err(error) => {
+            log::warn!(
+                "Image model asset download failed: label='{}', error='{error}'",
+                asset.label
+            );
+            status_for_image_asset(asset, false, Some(error))
         }
     }
 }
@@ -499,6 +548,36 @@ fn status_for_model_asset(
     )
 }
 
+fn status_for_image_asset(
+    asset: &ModelAsset,
+    downloaded: bool,
+    error: Option<String>,
+) -> ModelAssetStatus {
+    let compatibility_error = unsupported_image_model_error(&asset.path).map(str::to_string);
+    status_for_asset(
+        asset.label,
+        &asset.file_name,
+        &asset.path,
+        &asset.url,
+        image_model_ready(&asset.path),
+        downloaded,
+        error.or(compatibility_error),
+    )
+}
+
+fn unsupported_image_model_error(path: &Path) -> Option<&'static str> {
+    if path.exists()
+        && path
+            .file_name()
+            .map(|name| name.to_string_lossy() == UNSUPPORTED_FLUX2_IMAGE_MODEL_FILE)
+            .unwrap_or(false)
+    {
+        Some(UNSUPPORTED_FLUX2_IMAGE_MODEL_ERROR)
+    } else {
+        None
+    }
+}
+
 fn status_for_release_binary(
     asset: &ReleaseBinaryAsset,
     downloaded: bool,
@@ -764,5 +843,92 @@ mod tests {
         assert!(!status.image_binary_ready);
         assert!(!status.llm_ready);
         assert!(!status.image_ready);
+    }
+
+    #[test]
+    fn image_status_rejects_flux2_model_without_companion_assets() {
+        let paths = RuntimePaths {
+            data_dir: PathBuf::from("target/odyssee-unsupported-image-model-test"),
+            model_dir: PathBuf::from("target/odyssee-unsupported-image-model-test/models"),
+            cache_dir: PathBuf::from("target/odyssee-unsupported-image-model-test/cache"),
+            image_cache_dir: PathBuf::from("target/odyssee-unsupported-image-model-test/cache/images"),
+            database_path: PathBuf::from(
+                "target/odyssee-unsupported-image-model-test/odyssee.sqlite",
+            ),
+            llm_binary: PathBuf::from("target/odyssee-unsupported-image-model-test/bin/llama-cli"),
+            image_binary: PathBuf::from("target/odyssee-unsupported-image-model-test/bin/sd"),
+            llm_model: PathBuf::from("target/odyssee-unsupported-image-model-test/models/llm.gguf"),
+            image_model: PathBuf::from(
+                "target/odyssee-unsupported-image-model-test/models/flux-2-klein-base-4b-Q4_0.gguf",
+            ),
+        };
+        let _ = fs::remove_dir_all(&paths.data_dir);
+        fs::create_dir_all(&paths.model_dir).expect("model directory should be created");
+        fs::write(&paths.image_model, b"GGUF").expect("mock image model should be written");
+
+        let status = get_model_status_for_paths(&paths);
+
+        assert!(!status.image_model_ready);
+        assert!(!status.image_ready);
+        assert!(status.downloads.image.error.is_some());
+        let _ = fs::remove_dir_all(&paths.data_dir);
+    }
+
+    #[test]
+    fn image_status_accepts_default_single_file_model() {
+        let paths = RuntimePaths {
+            data_dir: PathBuf::from("target/odyssee-supported-image-model-test"),
+            model_dir: PathBuf::from("target/odyssee-supported-image-model-test/models"),
+            cache_dir: PathBuf::from("target/odyssee-supported-image-model-test/cache"),
+            image_cache_dir: PathBuf::from("target/odyssee-supported-image-model-test/cache/images"),
+            database_path: PathBuf::from(
+                "target/odyssee-supported-image-model-test/odyssee.sqlite",
+            ),
+            llm_binary: PathBuf::from("target/odyssee-supported-image-model-test/bin/llama-cli"),
+            image_binary: PathBuf::from("target/odyssee-supported-image-model-test/bin/sd"),
+            llm_model: PathBuf::from("target/odyssee-supported-image-model-test/models/llm.gguf"),
+            image_model: PathBuf::from(format!(
+                "target/odyssee-supported-image-model-test/models/{IMAGE_MODEL_FILE}"
+            )),
+        };
+        let _ = fs::remove_dir_all(&paths.data_dir);
+        fs::create_dir_all(&paths.model_dir).expect("model directory should be created");
+        fs::write(&paths.image_model, b"mock").expect("mock image model should be written");
+
+        let status = get_model_status_for_paths(&paths);
+
+        assert!(status.image_model_ready);
+        assert!(status.downloads.image.error.is_none());
+        let _ = fs::remove_dir_all(&paths.data_dir);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn image_status_requires_stable_diffusion_dylib_on_macos() {
+        let paths = RuntimePaths {
+            data_dir: PathBuf::from("target/odyssee-image-dylib-status-test"),
+            model_dir: PathBuf::from("target/odyssee-image-dylib-status-test/models"),
+            cache_dir: PathBuf::from("target/odyssee-image-dylib-status-test/cache"),
+            image_cache_dir: PathBuf::from("target/odyssee-image-dylib-status-test/cache/images"),
+            database_path: PathBuf::from("target/odyssee-image-dylib-status-test/odyssee.sqlite"),
+            llm_binary: PathBuf::from("target/odyssee-image-dylib-status-test/bin/llama-cli"),
+            image_binary: PathBuf::from("target/odyssee-image-dylib-status-test/bin/sd"),
+            llm_model: PathBuf::from("target/odyssee-image-dylib-status-test/models/llm.gguf"),
+            image_model: PathBuf::from("target/odyssee-image-dylib-status-test/models/image.gguf"),
+        };
+        let _ = fs::remove_dir_all(&paths.data_dir);
+        fs::create_dir_all(paths.image_binary.parent().expect("binary parent should exist"))
+            .expect("binary directory should be created");
+        fs::create_dir_all(&paths.model_dir).expect("model directory should be created");
+        fs::write(&paths.image_binary, b"mock").expect("mock image binary should be written");
+        fs::write(&paths.image_model, b"mock").expect("mock image model should be written");
+        make_executable(&paths.image_binary).expect("mock image binary should be executable");
+
+        let status = get_model_status_for_paths(&paths);
+
+        assert!(!status.image_binary_ready);
+        assert!(status.image_model_ready);
+        assert!(!status.image_ready);
+        let _ = fs::remove_dir_all(&paths.data_dir);
     }
 }

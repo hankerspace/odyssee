@@ -24,7 +24,7 @@ const SAFETY_PROMPT: &str = "You are a children encyclopedia. Never mention viol
 const STYLE_WRAPPER: &str = "A professional educational illustration of [SUBJECT], sticker style, clean lines, bright colors, white background, high quality for children encyclopedia.";
 const DB_FILE_NAME: &str = "odyssee.sqlite";
 const LLM_MODEL_FILE: &str = "phi-4-mini-instruct-q4_k_m.gguf";
-const IMAGE_MODEL_FILE: &str = "flux-2-klein-base-4b-Q4_0.gguf";
+const IMAGE_MODEL_FILE: &str = "sd_turbo.safetensors";
 
 #[derive(Clone, Copy)]
 struct DomainSeed {
@@ -868,6 +868,7 @@ pub fn run() {
       commands::get_runtime_profile,
       commands::get_model_status,
       commands::prepare_models,
+      commands::clear_generation_cache,
       commands::get_catalog,
       commands::generate_article,
       commands::generate_image
@@ -916,7 +917,7 @@ mod tests {
       questions: vec!["Question 1".to_string(), "Question 2".to_string(), "Question 3".to_string()],
     };
 
-    let prompt = build_article_prompt(&article, "fr");
+    let prompt = build_article_prompt(&article, "fr", None);
     assert!(prompt.contains(SAFETY_PROMPT));
     assert!(prompt.contains("Renard polaire"));
   }

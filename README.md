@@ -89,7 +89,7 @@ On Windows, Odyssée uses `%APPDATA%\Odyssee`:
     sd.exe
   models\
     phi-4-mini-instruct-q4_k_m.gguf
-    flux-2-klein-base-4b-Q4_0.gguf
+    sd_turbo.safetensors
   cache\
     images\
   odyssee.sqlite
@@ -111,7 +111,7 @@ On macOS and Linux, the equivalent directory is `~/.local/share/Odyssee`.
 1. Build or download a `stable-diffusion.cpp` CLI binary for your hardware.
 2. Rename the CLI to `sd.exe` on Windows or `sd` elsewhere.
 3. Copy the binary to the local `bin` directory printed by `npm run paths:runtime`.
-4. The app downloads FLUX.2 Klein `Q4_0` automatically on first Tauri startup if `flux-2-klein-base-4b-Q4_0.gguf` is missing. You can still copy the file manually to the local `models` directory to skip the download.
+4. The app downloads SD-Turbo automatically on first Tauri startup if `sd_turbo.safetensors` is missing. You can still copy the file manually to the local `models` directory to skip the download.
 
 The MVP also works without these files through the offline fallback. The automatic model download needs network access only for missing model files; if it fails or the sidecar binaries are absent, the deterministic text and SVG fallbacks stay active. As soon as the expected binaries and models exist, the Rust commands try to use them and cache successful results locally.
 

@@ -72,19 +72,19 @@ fn accelerator_flags(accelerator: &str) -> (Vec<String>, Vec<String>) {
   match accelerator {
     "CUDA" => (
       vec!["--ctx-size".into(), "4096".into(), "--n-gpu-layers".into(), "99".into()],
-      vec!["--steps".into(), "4".into(), "--backend".into(), "cuda".into()],
+      vec!["--steps".into(), "4".into()],
     ),
     "Metal" => (
-      vec!["--ctx-size".into(), "4096".into(), "--metal".into()],
-      vec!["--steps".into(), "4".into(), "--backend".into(), "metal".into()],
+      vec!["--ctx-size".into(), "4096".into(), "--n-gpu-layers".into(), "99".into()],
+      vec!["--steps".into(), "4".into()],
     ),
     "Vulkan" => (
       vec!["--ctx-size".into(), "4096".into(), "--backend".into(), "vulkan".into()],
-      vec!["--steps".into(), "4".into(), "--backend".into(), "vulkan".into()],
+      vec!["--steps".into(), "4".into()],
     ),
     _ => (
       vec!["--ctx-size".into(), "4096".into(), "--threads".into(), "4".into()],
-      vec!["--steps".into(), "4".into(), "--backend".into(), "cpu".into()],
+      vec!["--steps".into(), "4".into()],
     ),
   }
 }
@@ -95,4 +95,25 @@ fn has_command(command: &str) -> bool {
     .output()
     .map(|result| result.status.success())
     .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn metal_llm_flags_do_not_use_removed_metal_argument() {
+    let (llm_flags, _) = accelerator_flags("Metal");
+
+    assert!(!llm_flags.contains(&"--metal".to_string()));
+  }
+
+  #[test]
+  fn image_flags_do_not_pass_unsupported_backend_argument() {
+    for accelerator in ["CUDA", "Metal", "Vulkan", "CPU (AVX2/AVX512 when available)"] {
+      let (_, image_flags) = accelerator_flags(accelerator);
+
+      assert!(!image_flags.contains(&"--backend".to_string()));
+    }
+  }
 }

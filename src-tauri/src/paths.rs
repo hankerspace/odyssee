@@ -75,6 +75,27 @@ pub(crate) fn executable_exists(path: &Path) -> bool {
     }
 }
 
+pub(crate) fn image_sidecar_ready(paths: &RuntimePaths) -> bool {
+    executable_exists(&paths.image_binary) && stable_diffusion_runtime_dependencies_ready(paths)
+}
+
+fn stable_diffusion_runtime_dependencies_ready(paths: &RuntimePaths) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        return paths
+            .image_binary
+            .parent()
+            .map(|directory| directory.join("libstable-diffusion.dylib").is_file())
+            .unwrap_or(false);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = paths;
+        true
+    }
+}
+
 pub(crate) fn resolve_model_directory() -> String {
     RuntimePaths::resolve().model_dir.display().to_string()
 }

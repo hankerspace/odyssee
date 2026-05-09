@@ -34,6 +34,7 @@ pub(crate) struct HardwareProfile {
 pub(crate) struct ArticleRequest {
     pub(crate) article_id: String,
     pub(crate) locale: Option<String>,
+    pub(crate) question: Option<String>,
 }
 
 /// Root catalog payload returned to the frontend.
@@ -129,4 +130,11 @@ pub(crate) struct ModelPreparationStatus {
     pub(crate) image_binary: ModelAssetStatus,
     pub(crate) llm: ModelAssetStatus,
     pub(crate) image: ModelAssetStatus,
+}
+
+/// Result of a local generation cache purge.
+#[derive(Serialize)]
+pub(crate) struct CachePurgeResult {
+    pub(crate) entries_deleted: usize,
+    pub(crate) files_deleted: usize,
 }

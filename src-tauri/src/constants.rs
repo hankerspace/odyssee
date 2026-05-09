@@ -16,7 +16,7 @@ pub(crate) const LLM_MODEL_FILE: &str = "phi-4-mini-instruct-q4_k_m.gguf";
 pub(crate) const LLM_MODEL_URL: &str = "https://huggingface.co/matrixportalx/Phi-4-mini-instruct-Q4_K_M-GGUF/resolve/main/phi-4-mini-instruct-q4_k_m.gguf";
 
 /// Default image model expected in the local models directory.
-pub(crate) const IMAGE_MODEL_FILE: &str = "flux-2-klein-base-4b-Q4_0.gguf";
+pub(crate) const IMAGE_MODEL_FILE: &str = "sd_turbo.safetensors";
 
-/// Public GGUF download URL used to bootstrap the image model on first startup.
-pub(crate) const IMAGE_MODEL_URL: &str = "https://huggingface.co/leejet/FLUX.2-klein-base-4B-GGUF/resolve/main/flux-2-klein-base-4b-Q4_0.gguf";
+/// Public single-file Stable Diffusion download URL used to bootstrap the image model on first startup.
+pub(crate) const IMAGE_MODEL_URL: &str = "https://huggingface.co/stabilityai/sd-turbo/resolve/main/sd_turbo.safetensors";
