@@ -1,19 +1,4 @@
 {
-  "prompts": {
-    "article_instruction": "Answer in English. Stay strictly focused on the subject and, if a question is provided, answer that question first without rephrasing it or drifting to another theme. Use only the reliable summary and safe general knowledge. Vary examples, the analogy, and the activity to avoid repetitive answers. Structure: short title, 3 short paragraphs, one concrete analogy, one safe mini-activity. Do not add follow-up questions.",
-    "curiosity_focus": "Selected curiosity question: {question}\nFocus the explanation on this question.",
-    "questions_instruction": "Write exactly three short curiosity questions in English. Each question must be different from the examples, concrete, directly linked to the subject, and safe. Vary the angles: how it works, comparison, protection, or observation. Return one question per line and no answers.",
-    "subcategories_instruction": "Suggest exactly {count} child-safe subthemes in English for this encyclopedia category. Each label must be distinct, concrete, centered on the domain, and broad enough to group several subjects. Avoid synonyms, duplicates, and vague terms like Discoveries or General. Return one short label per line and no explanations.",
-    "age_instruction_3_6": "Adapt all content for a child aged 3 to 6: very short sentences, very simple words, everyday examples, and a gentle reassuring tone.",
-    "age_instruction_6_10": "Adapt all content for a child aged 6 to 10: clear vocabulary, concrete explanations, simple analogies, and progressive details.",
-    "age_instruction_10_14": "Adapt all content for a child aged 10 to 14: more precise vocabulary, cause-and-effect links, useful nuance, and a safe challenge.",
-    "article_subject_label": "Subject",
-    "reliable_summary_label": "Reliable summary",
-    "safe_examples_label": "Safe examples",
-    "category_label": "Category",
-    "reliable_welcome_label": "Reliable welcome",
-    "existing_subcategories_label": "Existing subcategories"
-  },
   "errors": {
     "unknown_domain": "Unknown domain: {domain_id}",
     "unknown_article": "Unknown article: {article_id}",

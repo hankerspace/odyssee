@@ -1,19 +1,4 @@
 {
-  "prompts": {
-    "article_instruction": "Réponds en français. Reste strictement centré sur le sujet et, si une question est indiquée, réponds d'abord précisément à cette question sans la reformuler ni partir vers un autre thème. Utilise uniquement le résumé fiable et des connaissances générales sûres. Varie les exemples, l'analogie et l'activité pour éviter les réponses répétitives. Structure: titre court, 3 paragraphes courts, une analogie concrète, une mini-activité sûre. N'ajoute pas de questions à la fin.",
-    "curiosity_focus": "Question de curiosité choisie: {question}\nCentre l'explication sur cette question.",
-    "questions_instruction": "Écris exactement trois courtes questions de curiosité en français. Chaque question doit être différente des exemples, concrète, directement liée au sujet et sûre. Varie les angles: fonctionnement, comparaison, protection ou observation. Retourne une question par ligne et aucune réponse.",
-    "subcategories_instruction": "Suggère exactement {count} sous-thèmes sûrs en français pour cette catégorie d'encyclopédie. Chaque libellé doit être distinct, concret, centré sur le domaine et assez large pour regrouper plusieurs sujets. Évite les synonymes, doublons et termes vagues comme Découvertes ou Général. Retourne un court libellé par ligne et aucune explication.",
-    "age_instruction_3_6": "Adapte tout le contenu à un enfant de 3 à 6 ans : phrases très courtes, vocabulaire très simple, exemples du quotidien, ton doux et rassurant.",
-    "age_instruction_6_10": "Adapte tout le contenu à un enfant de 6 à 10 ans : vocabulaire clair, explications concrètes, analogies simples et détails progressifs.",
-    "age_instruction_10_14": "Adapte tout le contenu à un enfant de 10 à 14 ans : vocabulaire plus précis, liens de cause à effet, nuances utiles et défi sûr.",
-    "article_subject_label": "Sujet",
-    "reliable_summary_label": "Résumé fiable",
-    "safe_examples_label": "Exemples sûrs",
-    "category_label": "Catégorie",
-    "reliable_welcome_label": "Accueil fiable",
-    "existing_subcategories_label": "Sous-catégories existantes"
-  },
   "errors": {
     "unknown_domain": "Domaine inconnu : {domain_id}",
     "unknown_article": "Article inconnu : {article_id}",

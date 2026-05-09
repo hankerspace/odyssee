@@ -77,6 +77,7 @@ const subcategoriesResult = ref(null)
 const imageResult = ref(null)
 const selectedCuriosityQuestion = ref('')
 const articleNavigationTrail = ref([])
+const selectedAgeRange = ref('6-10')
 const errorMessage = ref('')
 const loadingCatalog = ref(false)
 const loadingArticle = ref(false)
@@ -114,6 +115,12 @@ const modelStatus = ref({
 const availableLocales = [
   { value: 'en', labelKey: 'app.locales.en' },
   { value: 'fr', labelKey: 'app.locales.fr' },
+]
+
+const availableAgeRanges = [
+  { value: '3-6', labelKey: 'app.ageRanges.age3_6' },
+  { value: '6-10', labelKey: 'app.ageRanges.age6_10' },
+  { value: '10-14', labelKey: 'app.ageRanges.age10_14' },
 ]
 
 const currentLevel = computed(() => {
@@ -166,12 +173,35 @@ const imageSource = computed(() => {
   return convertFileSrc(imagePath)
 })
 
+const sourceLabelKeys = {
+  SQLite: 'app.sources.sqlite',
+  catalog: 'app.sources.catalog',
+  cache: 'app.sources.cache',
+  'llama.cpp': 'app.sources.llama',
+  'stable-diffusion.cpp': 'app.sources.stableDiffusion',
+}
+
+function sourceLabel(source) {
+  const labelKey = sourceLabelKeys[source]
+
+  return labelKey ? t(labelKey) : source
+}
+
 const selectedSourceLabel = computed(() => {
   if (!articleResult.value && !questionsResult.value && !subcategoriesResult.value && !imageResult.value) {
-    return 'SQLite'
+    return sourceLabel('SQLite')
   }
 
-  return [articleResult.value?.source, questionsResult.value?.source, subcategoriesResult.value?.source, imageResult.value?.source].filter(Boolean).join(' / ')
+  return [articleResult.value?.source, questionsResult.value?.source, subcategoriesResult.value?.source, imageResult.value?.source]
+    .filter(Boolean)
+    .map(sourceLabel)
+    .join(' / ')
+})
+
+const selectedAgeRangeLabel = computed(() => {
+  const ageRange = availableAgeRanges.find((item) => item.value === selectedAgeRange.value)
+
+  return ageRange ? t(ageRange.labelKey) : selectedAgeRange.value
 })
 
 const runtimeAssets = computed(() => {
@@ -237,7 +267,7 @@ const articleGenerationFeedback = computed(() => {
   }
 
   if (articleResult.value?.source) {
-    return t('app.generation.article.ready', { source: articleResult.value.source })
+    return t('app.generation.article.ready', { source: sourceLabel(articleResult.value.source) })
   }
 
   return t('app.generation.article.pending')
@@ -251,7 +281,7 @@ const questionsGenerationFeedback = computed(() => {
   }
 
   if (questionsResult.value?.source) {
-    return t('app.generation.questions.ready', { source: questionsResult.value.source })
+    return t('app.generation.questions.ready', { source: sourceLabel(questionsResult.value.source) })
   }
 
   return t('app.generation.questions.pending')
@@ -279,7 +309,7 @@ const imageGenerationFeedback = computed(() => {
   }
 
   if (imageResult.value?.source) {
-    return t('app.generation.image.ready', { source: imageResult.value.source })
+    return t('app.generation.image.ready', { source: sourceLabel(imageResult.value.source) })
   }
 
   return t('app.generation.image.pending')
@@ -511,7 +541,7 @@ async function generateQuestions(articleId) {
   try {
     await renderLoadingState()
     questionsResult.value = await invoke('generate_questions', {
-      request: { article_id: articleId, locale: locale.value },
+      request: { article_id: articleId, locale: locale.value, age_range: selectedAgeRange.value },
     })
   } catch (error) {
     errorMessage.value = t('app.errors.questions', { error })
@@ -526,7 +556,7 @@ async function generateSubcategories(domainId) {
   try {
     await renderLoadingState()
     subcategoriesResult.value = await invoke('generate_subcategories', {
-      request: { domain_id: domainId, locale: locale.value },
+      request: { domain_id: domainId, locale: locale.value, age_range: selectedAgeRange.value },
     })
   } catch (error) {
     errorMessage.value = t('app.errors.subcategories', { error })
@@ -539,7 +569,7 @@ async function generateArticle(articleId, curiosityQuestion = '') {
   loadingArticle.value = true
 
   try {
-    const request = { article_id: articleId, locale: locale.value }
+    const request = { article_id: articleId, locale: locale.value, age_range: selectedAgeRange.value }
 
     if (curiosityQuestion) {
       request.question = curiosityQuestion
@@ -562,7 +592,7 @@ async function generateImage(articleId) {
   try {
     await renderLoadingState()
     imageResult.value = await invoke('generate_image', {
-      request: { article_id: articleId, locale: locale.value },
+      request: { article_id: articleId, locale: locale.value, age_range: selectedAgeRange.value },
     })
   } catch (error) {
     errorMessage.value = t('app.errors.image', { error })
@@ -603,6 +633,20 @@ watch(locale, async () => {
   persistLocale(locale.value)
   await loadSystemProfile()
   await loadCatalog()
+
+  if (selectedSection.value) {
+    await regenerateCurrentArticle()
+  }
+})
+
+watch(selectedAgeRange, async () => {
+  articleNavigationTrail.value = []
+  selectedCuriosityQuestion.value = ''
+  subcategoriesResult.value = null
+
+  if (selectedDomain.value) {
+    await generateSubcategories(selectedDomain.value.id)
+  }
 
   if (selectedSection.value) {
     await regenerateCurrentArticle()
@@ -686,22 +730,38 @@ watch(locale, async () => {
           <p class="mt-1 text-slate-600">{{ t('app.subtitle') }}</p>
         </div>
 
-        <label class="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm">
-          <span class="font-medium text-slate-700">{{ t('app.language') }}</span>
-          <select v-model="locale" class="rounded-lg border border-slate-300 bg-white px-2 py-1">
-            <option
-              v-for="localeItem in availableLocales"
-              :key="localeItem.value"
-              :value="localeItem.value"
-            >
-              {{ t(localeItem.labelKey) }}
-            </option>
-          </select>
-        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm">
+            <span class="font-medium text-slate-700">{{ t('app.ageRange') }}</span>
+            <select v-model="selectedAgeRange" class="rounded-lg border border-slate-300 bg-white px-2 py-1">
+              <option
+                v-for="ageRange in availableAgeRanges"
+                :key="ageRange.value"
+                :value="ageRange.value"
+              >
+                {{ t(ageRange.labelKey) }}
+              </option>
+            </select>
+          </label>
+
+          <label class="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm">
+            <span class="font-medium text-slate-700">{{ t('app.language') }}</span>
+            <select v-model="locale" class="rounded-lg border border-slate-300 bg-white px-2 py-1">
+              <option
+                v-for="localeItem in availableLocales"
+                :key="localeItem.value"
+                :value="localeItem.value"
+              >
+                {{ t(localeItem.labelKey) }}
+              </option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
         <span class="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">{{ t(`app.levels.${currentLevel}`) }}</span>
+        <span class="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">{{ selectedAgeRangeLabel }}</span>
         <span class="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">{{ t('app.localOnly') }}</span>
         <span class="rounded-full bg-purple-50 px-3 py-1 font-medium text-purple-700">{{ selectedSourceLabel }}</span>
       </div>

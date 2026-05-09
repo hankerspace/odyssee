@@ -1,29 +1,16 @@
-//! Backend translations for prompts and user-facing errors.
+//! Backend translations for user-facing errors and labels.
+
+use crate::constants::{
+  EN_BACKEND_MESSAGES, EN_PROMPT_MESSAGES, FR_BACKEND_MESSAGES, FR_PROMPT_MESSAGES,
+  PromptMessages,
+};
 
 use serde::Deserialize;
 
-#[derive(Deserialize)]
 pub(crate) struct BackendMessages {
   pub(crate) prompts: PromptMessages,
   pub(crate) errors: ErrorMessages,
   pub(crate) hardware: HardwareMessages,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct PromptMessages {
-  pub(crate) article_instruction: String,
-  pub(crate) curiosity_focus: String,
-  pub(crate) questions_instruction: String,
-  pub(crate) subcategories_instruction: String,
-  pub(crate) age_instruction_3_6: String,
-  pub(crate) age_instruction_6_10: String,
-  pub(crate) age_instruction_10_14: String,
-  pub(crate) article_subject_label: String,
-  pub(crate) reliable_summary_label: String,
-  pub(crate) safe_examples_label: String,
-  pub(crate) category_label: String,
-  pub(crate) reliable_welcome_label: String,
-  pub(crate) existing_subcategories_label: String,
 }
 
 #[derive(Deserialize)]
@@ -44,13 +31,21 @@ pub(crate) struct HardwareMessages {
   pub(crate) cpu_performance: String,
 }
 
-const FR_MESSAGES: &str = include_str!("../i18n/fr.json");
-const EN_MESSAGES: &str = include_str!("../i18n/en.json");
+#[derive(Deserialize)]
+struct BackendLocaleMessages {
+  errors: ErrorMessages,
+  hardware: HardwareMessages,
+}
 
 pub(crate) fn backend_messages(locale: &str) -> BackendMessages {
-  let content = if locale == "en" { EN_MESSAGES } else { FR_MESSAGES };
+  let content = if locale == "en" { EN_BACKEND_MESSAGES } else { FR_BACKEND_MESSAGES };
+  let messages: BackendLocaleMessages = serde_json::from_str(content).expect("backend i18n file must be valid");
 
-  serde_json::from_str(content).expect("backend i18n file must be valid")
+  BackendMessages {
+    prompts: if locale == "en" { EN_PROMPT_MESSAGES } else { FR_PROMPT_MESSAGES },
+    errors: messages.errors,
+    hardware: messages.hardware,
+  }
 }
 
 pub(crate) fn translate(template: &str, values: &[(&str, &str)]) -> String {

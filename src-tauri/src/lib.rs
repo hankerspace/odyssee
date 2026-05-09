@@ -840,7 +840,7 @@ mod tests {
   #[test]
   fn catalog_seed_has_required_tree() {
     assert_eq!(DOMAINS.len(), 8);
-    assert_eq!(SECTIONS.len(), 24);
+    assert_eq!(SECTIONS.len(), 48);
     assert_eq!(ARTICLES.len(), 24);
   }
 
@@ -853,7 +853,7 @@ mod tests {
       questions: vec!["Question 1".to_string(), "Question 2".to_string(), "Question 3".to_string()],
     };
 
-    let prompt = build_article_prompt(&article, "fr", None);
+    let prompt = build_article_prompt(&article, "fr", "6-10", None);
     assert!(prompt.contains(SAFETY_PROMPT));
     assert!(prompt.contains("Renard polaire"));
   }

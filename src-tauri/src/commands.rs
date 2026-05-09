@@ -2,7 +2,7 @@
 
 use crate::generation::{
     build_article_prompt, build_questions_prompt, build_subcategories_prompt, image_prompt,
-    now_millis, parse_generated_list,
+    normalize_age_range, now_millis, parse_generated_list,
 };
 use crate::hardware::{build_runtime_profile, detect_hardware_profile};
 use crate::i18n::{backend_messages, translate};
@@ -138,8 +138,9 @@ pub(crate) async fn generate_article(request: ArticleRequest) -> Result<Generate
         let paths = RuntimePaths::resolve();
         let connection = open_database(&paths)?;
         let language = normalize_locale(request.locale.as_deref());
+        let age_range = normalize_age_range(request.age_range.as_deref());
         let article = load_article(&connection, &request.article_id, language)?;
-        let generated_questions_cache_key = format!("questions:{}:{}", language, article.id);
+        let generated_questions_cache_key = format!("questions:{}:{}:{}", language, age_range, article.id);
         let generated_questions = read_cache(&connection, &generated_questions_cache_key)?.unwrap_or_default();
         let curiosity_question = request
             .question
@@ -157,13 +158,13 @@ pub(crate) async fn generate_article(request: ArticleRequest) -> Result<Generate
             })
             .map(str::to_string);
         log::info!(
-            "Article generation requested: article_id='{}', locale='{language}', curiosity_question={}",
+            "Article generation requested: article_id='{}', locale='{language}', age_range='{age_range}', curiosity_question={}",
             article.id,
             curiosity_question.as_deref().unwrap_or("none")
         );
         let cache_key = curiosity_question.as_deref().map_or_else(
-            || format!("text:{}:{}", language, article.id),
-            |question| format!("text:{}:{}:question:{}", language, article.id, question),
+            || format!("text:{}:{}:{}", language, age_range, article.id),
+            |question| format!("text:{}:{}:{}:question:{}", language, age_range, article.id, question),
         );
 
         if let Some(text) = read_cache(&connection, &cache_key)? {
@@ -180,7 +181,7 @@ pub(crate) async fn generate_article(request: ArticleRequest) -> Result<Generate
             });
         }
 
-        let prompt = build_article_prompt(&article, language, curiosity_question.as_deref());
+        let prompt = build_article_prompt(&article, language, age_range, curiosity_question.as_deref());
         let profile = build_runtime_profile(language);
         let llm_ready = executable_exists(&paths.llm_binary) && paths.llm_model.exists();
         if !llm_ready {
@@ -219,13 +220,14 @@ pub(crate) async fn generate_questions(request: ArticleRequest) -> Result<Genera
         let paths = RuntimePaths::resolve();
         let connection = open_database(&paths)?;
         let language = normalize_locale(request.locale.as_deref());
+        let age_range = normalize_age_range(request.age_range.as_deref());
         let article = load_article(&connection, &request.article_id, language)?;
         log::info!(
-            "Question generation requested: article_id='{}', locale='{language}'",
+            "Question generation requested: article_id='{}', locale='{language}', age_range='{age_range}'",
             article.id
         );
-        let cache_key = format!("questions:{}:{}", language, article.id);
-        let prompt = build_questions_prompt(&article, language);
+        let cache_key = format!("questions:{}:{}:{}", language, age_range, article.id);
+        let prompt = build_questions_prompt(&article, language, age_range);
 
         if let Some(value) = read_cache(&connection, &cache_key)? {
             return Ok(GeneratedQuestions {
@@ -278,6 +280,7 @@ pub(crate) async fn generate_subcategories(request: DomainRequest) -> Result<Gen
         let paths = RuntimePaths::resolve();
         let connection = open_database(&paths)?;
         let language = normalize_locale(request.locale.as_deref());
+        let age_range = normalize_age_range(request.age_range.as_deref());
         let catalog = load_catalog(&connection, language)?;
         let domain = catalog
             .domains
@@ -291,15 +294,20 @@ pub(crate) async fn generate_subcategories(request: DomainRequest) -> Result<Gen
             })?;
         let base_sections = load_domain_sections(&connection, &domain.id, language)?;
         log::info!(
-            "Subcategory generation requested: domain_id='{}', locale='{language}'",
+            "Subcategory generation requested: domain_id='{}', locale='{language}', age_range='{age_range}'",
             domain.id
         );
-        let cache_key = format!("subcategories:{}:{}", language, domain.id);
-        let prompt = build_subcategories_prompt(&domain, language);
+        let cache_key = format!("subcategories:{}:{}:{}", language, age_range, domain.id);
+        let visit_key = format!("subcategories-visits:{}:{}:{}", language, age_range, domain.id);
+        let visit_index = next_subcategory_visit_index(&connection, &visit_key)?;
+        let prompt = build_subcategories_prompt(&domain, language, age_range);
 
         if let Some(value) = read_cache(&connection, &cache_key)? {
             let labels = parse_generated_list(&value, base_sections.len());
-            let sections = merge_generated_subcategory_labels(&base_sections, &labels);
+            let sections = rotate_sections(
+                merge_generated_subcategory_labels(&base_sections, &labels),
+                visit_index,
+            );
             return Ok(GeneratedSubcategories {
                 domain_id: domain.id,
                 sections,
@@ -326,7 +334,12 @@ pub(crate) async fn generate_subcategories(request: DomainRequest) -> Result<Gen
                     "llama.cpp subcategory sidecar failed for domain_id='{}': {error}. Falling back to catalog subcategories.",
                     domain.id
                 );
-                return Ok(catalog_subcategory_response(domain.id, base_sections, prompt));
+                return Ok(catalog_subcategory_response(
+                    domain.id,
+                    base_sections,
+                    prompt,
+                    visit_index,
+                ));
             }
         };
         let labels = parse_generated_list(&text, base_sections.len());
@@ -337,9 +350,17 @@ pub(crate) async fn generate_subcategories(request: DomainRequest) -> Result<Gen
                 domain.id,
                 base_sections.len()
             );
-            return Ok(catalog_subcategory_response(domain.id, base_sections, prompt));
+            return Ok(catalog_subcategory_response(
+                domain.id,
+                base_sections,
+                prompt,
+                visit_index,
+            ));
         }
-        let sections = merge_generated_subcategory_labels(&base_sections, &labels);
+        let sections = rotate_sections(
+            merge_generated_subcategory_labels(&base_sections, &labels),
+            visit_index,
+        );
 
         write_cache(&connection, &cache_key, &labels.join("\n"))?;
         Ok(GeneratedSubcategories {
@@ -358,17 +379,21 @@ fn catalog_subcategory_response(
     domain_id: String,
     sections: Vec<crate::models::SectionDto>,
     prompt: String,
+    visit_index: usize,
 ) -> GeneratedSubcategories {
     GeneratedSubcategories {
         domain_id,
-        sections,
+        sections: rotate_sections(sections, visit_index),
         source: "catalog".to_string(),
         prompt,
         cached: false,
     }
 }
 
-fn merge_generated_subcategory_labels(base_sections: &[crate::models::SectionDto], labels: &[String]) -> Vec<crate::models::SectionDto> {
+fn merge_generated_subcategory_labels(
+    base_sections: &[crate::models::SectionDto],
+    labels: &[String],
+) -> Vec<crate::models::SectionDto> {
     base_sections
         .iter()
         .zip(labels.iter())
@@ -381,6 +406,28 @@ fn merge_generated_subcategory_labels(base_sections: &[crate::models::SectionDto
         .collect()
 }
 
+fn rotate_sections(
+    mut sections: Vec<crate::models::SectionDto>,
+    visit_index: usize,
+) -> Vec<crate::models::SectionDto> {
+    if sections.len() > 1 {
+        let offset = visit_index % sections.len();
+        sections.rotate_left(offset);
+    }
+    sections
+}
+
+fn next_subcategory_visit_index(
+    connection: &rusqlite::Connection,
+    visit_key: &str,
+) -> Result<usize, String> {
+    let visit_index = read_cache(connection, visit_key)?
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0);
+    write_cache(connection, visit_key, &(visit_index + 1).to_string())?;
+    Ok(visit_index)
+}
+
 /// Generates or retrieves an illustration with the local image sidecar.
 #[tauri::command]
 pub(crate) async fn generate_image(request: ArticleRequest) -> Result<GeneratedImage, String> {
@@ -388,13 +435,14 @@ pub(crate) async fn generate_image(request: ArticleRequest) -> Result<GeneratedI
         let paths = RuntimePaths::resolve();
         let connection = open_database(&paths)?;
         let language = normalize_locale(request.locale.as_deref());
+        let age_range = normalize_age_range(request.age_range.as_deref());
         log::info!(
-            "Image generation requested: article_id='{}', locale='{language}'",
+            "Image generation requested: article_id='{}', locale='{language}', age_range='{age_range}'",
             request.article_id
         );
         let article = load_article(&connection, &request.article_id, language)?;
-        let cache_key = format!("image:{}:{}", language, article.id);
-        let prompt = image_prompt(&article.title);
+        let cache_key = format!("image:{}:{}:{}", language, age_range, article.id);
+        let prompt = image_prompt(&article.title, language, age_range);
 
         if let Some(path) = read_cache(&connection, &cache_key)? {
             if Path::new(&path).exists() {
@@ -493,6 +541,7 @@ mod tests {
             "nature".to_string(),
             sample_sections(),
             "Prompt sous-catégories".to_string(),
+            0,
         );
 
         assert_eq!(response.domain_id, "nature");
@@ -502,6 +551,35 @@ mod tests {
         assert_eq!(response.source, "catalog");
         assert_eq!(response.prompt, "Prompt sous-catégories");
         assert!(!response.cached);
+    }
+
+    #[test]
+    fn catalog_subcategory_response_rotates_between_visits() {
+        let first = catalog_subcategory_response(
+            "nature".to_string(),
+            sample_sections(),
+            "Prompt sous-catégories".to_string(),
+            0,
+        );
+        let second = catalog_subcategory_response(
+            "nature".to_string(),
+            sample_sections(),
+            "Prompt sous-catégories".to_string(),
+            1,
+        );
+
+        let first_ids: Vec<&str> = first
+            .sections
+            .iter()
+            .map(|section| section.id.as_str())
+            .collect();
+        let second_ids: Vec<&str> = second
+            .sections
+            .iter()
+            .map(|section| section.id.as_str())
+            .collect();
+
+        assert_ne!(first_ids, second_ids);
     }
 
     #[test]

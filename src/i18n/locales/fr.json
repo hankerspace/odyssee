@@ -3,10 +3,23 @@
     "title": "Odyssée Kids",
     "subtitle": "Encyclopédie enfant hors ligne alimentée par une IA locale",
     "language": "Langue",
+    "ageRange": "Âge",
     "localOnly": "100% local",
     "locales": {
       "en": "English",
       "fr": "Français"
+    },
+    "ageRanges": {
+      "age3_6": "3-6 ans",
+      "age6_10": "6-10 ans",
+      "age10_14": "10-14 ans"
+    },
+    "sources": {
+      "sqlite": "SQLite local",
+      "catalog": "catalogue local",
+      "cache": "cache local",
+      "llama": "LLM local",
+      "stableDiffusion": "IA image locale"
     },
     "levels": {
       "domains": "Roue des domaines",
@@ -97,7 +110,7 @@
         "ready": "Texte prêt · {source}",
         "pending": "Texte en attente de génération.",
         "titleLoading": "Génération en cours…",
-        "explanationLabel": "Explication adaptative 6-10 ans",
+        "explanationLabel": "Explication adaptative",
         "safePlaceholder": "Le moteur prépare une fiche sûre et bienveillante."
       },
       "questions": {
@@ -109,7 +122,7 @@
       "subcategories": {
         "loading": "Génération des sous-catégories avec un appel LLM séparé…",
         "missing": "LLM local indisponible : sous-catégories SQLite affichées…",
-        "ready": "Sous-catégories prêtes · {source}",
+        "ready": "Sous-catégories prêtes.",
         "pending": "Sous-catégories locales prêtes."
       },
       "image": {
@@ -155,8 +168,11 @@
       ],
       "sections": {
         "animals": "Animaux",
+        "cold-animals": "Animaux du froid",
         "oceans": "Océans",
-        "forests": "Forêts"
+        "reefs": "Récifs",
+        "forests": "Forêts",
+        "giant-trees": "Arbres géants"
       }
     },
     "space": {
@@ -168,8 +184,11 @@
       ],
       "sections": {
         "planets": "Planètes",
+        "rings-and-moons": "Anneaux et lunes",
         "missions": "Missions",
-        "stars": "Étoiles"
+        "astronauts": "Astronautes",
+        "stars": "Étoiles",
+        "sunlight": "Lumière du Soleil"
       }
     },
     "history": {
@@ -181,8 +200,11 @@
       ],
       "sections": {
         "civilizations": "Civilisations",
+        "pyramids": "Pyramides",
         "inventions": "Inventions",
-        "explorers": "Explorateurs"
+        "books-and-ideas": "Livres et idées",
+        "explorers": "Explorateurs",
+        "great-journeys": "Grands voyages"
       }
     },
     "technology": {
@@ -194,8 +216,11 @@
       ],
       "sections": {
         "robots": "Robots",
+        "robot-explorers": "Robots explorateurs",
         "energy": "Énergie",
-        "transport": "Transport"
+        "solar-energy": "Énergie solaire",
+        "transport": "Transport",
+        "fast-trains": "Trains rapides"
       }
     },
     "human-body": {
@@ -207,8 +232,11 @@
       ],
       "sections": {
         "skeleton": "Squelette",
+        "bones-and-joints": "Os et articulations",
         "brain": "Cerveau",
-        "senses": "Sens"
+        "nerve-messages": "Messages nerveux",
+        "senses": "Sens",
+        "sight": "Vue"
       }
     },
     "arts": {
@@ -220,8 +248,11 @@
       ],
       "sections": {
         "music": "Musique",
+        "instruments": "Instruments",
         "painting": "Peinture",
-        "sculpture": "Sculpture"
+        "colors": "Couleurs",
+        "sculpture": "Sculpture",
+        "materials": "Matières"
       }
     }
   },

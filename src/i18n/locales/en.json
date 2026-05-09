@@ -3,10 +3,23 @@
     "title": "Odyssée Kids",
     "subtitle": "Offline children encyclopedia powered by local AI",
     "language": "Language",
+    "ageRange": "Age",
     "localOnly": "100% local",
     "locales": {
       "en": "English",
       "fr": "Français"
+    },
+    "ageRanges": {
+      "age3_6": "Ages 3-6",
+      "age6_10": "Ages 6-10",
+      "age10_14": "Ages 10-14"
+    },
+    "sources": {
+      "sqlite": "Local SQLite",
+      "catalog": "local catalog",
+      "cache": "local cache",
+      "llama": "local LLM",
+      "stableDiffusion": "local image AI"
     },
     "levels": {
       "domains": "Domain Wheel",
@@ -97,7 +110,7 @@
         "ready": "Text ready · {source}",
         "pending": "Text waiting for generation.",
         "titleLoading": "Generation in progress…",
-        "explanationLabel": "Adaptive explanation for ages 6-10",
+        "explanationLabel": "Adaptive explanation",
         "safePlaceholder": "The engine is preparing a safe and kind card."
       },
       "questions": {
@@ -109,7 +122,7 @@
       "subcategories": {
         "loading": "Generating subcategories with a separate LLM call…",
         "missing": "Local LLM unavailable: SQLite subcategories displayed…",
-        "ready": "Subcategories ready · {source}",
+        "ready": "Subcategories ready.",
         "pending": "Local subcategories ready."
       },
       "image": {
@@ -155,8 +168,11 @@
       ],
       "sections": {
         "animals": "Animals",
+        "cold-animals": "Cold-Weather Animals",
         "oceans": "Oceans",
-        "forests": "Forests"
+        "reefs": "Reefs",
+        "forests": "Forests",
+        "giant-trees": "Giant Trees"
       }
     },
     "space": {
@@ -168,8 +184,11 @@
       ],
       "sections": {
         "planets": "Planets",
+        "rings-and-moons": "Rings and Moons",
         "missions": "Missions",
-        "stars": "Stars"
+        "astronauts": "Astronauts",
+        "stars": "Stars",
+        "sunlight": "Sunlight"
       }
     },
     "history": {
@@ -181,8 +200,11 @@
       ],
       "sections": {
         "civilizations": "Civilizations",
+        "pyramids": "Pyramids",
         "inventions": "Inventions",
-        "explorers": "Explorers"
+        "books-and-ideas": "Books and Ideas",
+        "explorers": "Explorers",
+        "great-journeys": "Great Journeys"
       }
     },
     "technology": {
@@ -194,8 +216,11 @@
       ],
       "sections": {
         "robots": "Robots",
+        "robot-explorers": "Robot Explorers",
         "energy": "Energy",
-        "transport": "Transport"
+        "solar-energy": "Solar Energy",
+        "transport": "Transport",
+        "fast-trains": "Fast Trains"
       }
     },
     "human-body": {
@@ -207,8 +232,11 @@
       ],
       "sections": {
         "skeleton": "Skeleton",
+        "bones-and-joints": "Bones and Joints",
         "brain": "Brain",
-        "senses": "Senses"
+        "nerve-messages": "Nerve Messages",
+        "senses": "Senses",
+        "sight": "Sight"
       }
     },
     "arts": {
@@ -220,8 +248,11 @@
       ],
       "sections": {
         "music": "Music",
+        "instruments": "Instruments",
         "painting": "Painting",
-        "sculpture": "Sculpture"
+        "colors": "Colors",
+        "sculpture": "Sculpture",
+        "materials": "Materials"
       }
     }
   },

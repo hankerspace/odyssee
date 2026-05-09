@@ -1,13 +1,12 @@
 //! Sidecar process adapters for llama.cpp and stable-diffusion.cpp.
 
+use crate::constants::PNG_SIGNATURE;
 use crate::paths::RuntimePaths;
 use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
-
-const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n'];
 
 pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: &str) -> Result<String, String> {
   log::info!("Starting llama.cpp sidecar: binary='{}', model='{}'", paths.llm_binary.display(), paths.llm_model.display());
@@ -41,8 +40,8 @@ pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: 
 }
 
 fn clean_llama_output(output: &str, prompt: &str) -> Result<String, String> {
-  let output = remove_backspace_sequences(output);
-  let prompt = remove_backspace_sequences(prompt);
+  let output = normalize_llama_line_breaks(&remove_backspace_sequences(output));
+  let prompt = normalize_llama_line_breaks(&remove_backspace_sequences(prompt));
   let answer = extract_llama_answer(&output, &prompt);
   let cleaned = answer
     .lines()
@@ -58,6 +57,10 @@ fn clean_llama_output(output: &str, prompt: &str) -> Result<String, String> {
   } else {
     Ok(cleaned)
   }
+}
+
+fn normalize_llama_line_breaks(value: &str) -> String {
+  value.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 fn extract_llama_answer(output: &str, prompt: &str) -> String {
@@ -261,6 +264,21 @@ ggml_metal_free: deallocating\n";
     assert_eq!(
       cleaned,
       "The Sun is a star that gives Earth light and heat."
+    );
+  }
+
+  #[test]
+  fn clean_llama_output_keeps_questions_after_carriage_return_progress() {
+    let prompt = "You are an offline children encyclopedia assistant.\n\nÉcris exactement trois questions.\n\nSujet: Égypte\nRésumé fiable: L'Égypte antique a construit des pyramides près du Nil.";
+    let output = format!(
+      "Loading model...\r> {prompt}\rPourquoi le Nil était-il important ?\rComment construisait-on les pyramides ?\rQue racontent les hiéroglyphes ?\r[ Prompt: 1260.0 t/s | Generation: 120.0 t/s ]\rExiting...\r"
+    );
+
+    let cleaned = clean_llama_output(&output, prompt).expect("output should keep generated questions");
+
+    assert_eq!(
+      cleaned,
+      "Pourquoi le Nil était-il important ?\nComment construisait-on les pyramides ?\nQue racontent les hiéroglyphes ?"
     );
   }
 

@@ -1,16 +1,15 @@
 //! First-start runtime bootstrap helpers.
 
-use crate::constants::{IMAGE_MODEL_FILE, IMAGE_MODEL_URL, LLM_MODEL_FILE, LLM_MODEL_URL};
+use crate::constants::{
+    IMAGE_MODEL_FILE, IMAGE_MODEL_URL, LLM_MODEL_FILE, LLM_MODEL_URL,
+    UNSUPPORTED_FLUX2_IMAGE_MODEL_ERROR, UNSUPPORTED_FLUX2_IMAGE_MODEL_FILE,
+};
 use crate::models::{ModelAssetStatus, ModelPreparationStatus, ModelStatus};
 use crate::paths::{ensure_storage, executable_exists, image_sidecar_ready, RuntimePaths};
 use serde::Deserialize;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-
-const UNSUPPORTED_FLUX2_IMAGE_MODEL_ERROR: &str = "FLUX.2 Klein requires separate VAE and LLM companion models; \
-the current image runner only supports single-file stable-diffusion.cpp models.";
-const UNSUPPORTED_FLUX2_IMAGE_MODEL_FILE: &str = "flux-2-klein-base-4b-Q4_0.gguf";
 
 struct ModelAsset {
     label: &'static str,
