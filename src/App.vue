@@ -102,6 +102,8 @@ const systemProfile = ref({
 const modelStatus = ref({
   llm_ready: false,
   image_ready: false,
+  llm_binary_ready: false,
+  image_binary_ready: false,
   llm_model_ready: false,
   image_model_ready: false,
   llm_model: 'N/A',
@@ -153,6 +155,60 @@ const selectedSourceLabel = computed(() => {
   return [articleResult.value?.source, imageResult.value?.source].filter(Boolean).join(' / ')
 })
 
+const runtimeAssets = computed(() => {
+  const downloads = modelStatus.value.downloads ?? {}
+  return [
+    {
+      label: 'Sidecar LLM llama.cpp',
+      ready: modelStatus.value.llm_binary_ready,
+      path: systemProfile.value.llm_binary,
+      detail: downloads.llm_binary,
+    },
+    {
+      label: 'Sidecar image stable-diffusion.cpp',
+      ready: modelStatus.value.image_binary_ready,
+      path: systemProfile.value.image_binary,
+      detail: downloads.image_binary,
+    },
+    {
+      label: 'Modèle LLM Phi-4 Mini',
+      ready: modelStatus.value.llm_model_ready,
+      path: modelStatus.value.llm_model,
+      detail: downloads.llm,
+    },
+    {
+      label: 'Modèle image FLUX.2 Klein',
+      ready: modelStatus.value.image_model_ready,
+      path: modelStatus.value.image_model,
+      detail: downloads.image,
+    },
+  ]
+})
+
+function runtimeAssetState(asset) {
+  if (asset.detail?.error) {
+    return 'Erreur'
+  }
+
+  if (asset.ready) {
+    return asset.detail?.downloaded ? 'Téléchargé' : 'Déjà prêt'
+  }
+
+  return preparingModels.value ? 'Préparation' : 'Fallback actif'
+}
+
+function runtimeAssetStateClass(asset) {
+  if (asset.detail?.error) {
+    return 'bg-amber-100 text-amber-800'
+  }
+
+  if (asset.ready) {
+    return 'bg-emerald-100 text-emerald-800'
+  }
+
+  return 'bg-blue-100 text-blue-800'
+}
+
 function iconFor(iconName) {
   return iconRegistry[iconName] ?? Sparkles
 }
@@ -196,16 +252,14 @@ async function loadSystemProfile() {
     systemProfile.value = await invoke('get_runtime_profile')
     modelStatus.value = await invoke('get_model_status')
 
-    if (!modelStatus.value.llm_model_ready || !modelStatus.value.image_model_ready) {
+    if (!modelStatus.value.llm_ready || !modelStatus.value.image_ready) {
       preparingModels.value = true
       modelPreparationError.value = ''
-      modelStatus.value = {
-        ...modelStatus.value,
-        downloads: await invoke('prepare_models'),
-      }
-      modelStatus.value = await invoke('get_model_status')
+      const downloads = await invoke('prepare_models')
+      const refreshedStatus = await invoke('get_model_status')
+      modelStatus.value = { ...refreshedStatus, downloads }
     }
-  } catch {
+  } catch (error) {
     systemProfile.value = {
       hardware: 'Browser Preview',
       accelerator: 'Web',
@@ -216,7 +270,7 @@ async function loadSystemProfile() {
       llm_binary: 'Use Tauri runtime for sidecar path',
       image_binary: 'Use Tauri runtime for sidecar path',
     }
-    modelPreparationError.value = 'Téléchargement automatique indisponible dans ce mode.'
+    modelPreparationError.value = `Téléchargement automatique indisponible dans ce mode: ${error}`
   } finally {
     preparingModels.value = false
   }
@@ -296,6 +350,52 @@ watch(locale, async () => {
 
 <template>
   <div class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
+    <div v-if="preparingModels" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 px-4 backdrop-blur-sm">
+      <section class="w-full max-w-3xl rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <div class="flex items-start gap-4">
+          <span class="rounded-2xl bg-blue-50 p-3 text-blue-700">
+            <LoaderCircle class="h-7 w-7 animate-spin" />
+          </span>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Premier lancement local</p>
+            <h2 class="mt-1 text-2xl font-black text-slate-950">Préparation des sidecars et des modèles</h2>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+              Odyssée Kids récupère les binaires adaptés à cette plateforme, puis vérifie les modèles locaux. Les fallbacks hors ligne restent disponibles si une étape échoue.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+          <div class="rounded-2xl bg-slate-50 p-3">
+            <p class="font-semibold text-slate-500">Plateforme détectée</p>
+            <p class="text-slate-900">{{ systemProfile.hardware }} · {{ systemProfile.accelerator }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 p-3">
+            <p class="font-semibold text-slate-500">Stockage local</p>
+            <p class="break-all text-slate-900">{{ systemProfile.model_directory }}</p>
+          </div>
+        </div>
+
+        <ol class="mt-5 space-y-3">
+          <li
+            v-for="asset in runtimeAssets"
+            :key="asset.label"
+            class="rounded-2xl border border-slate-200 bg-white p-3 text-sm"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-semibold text-slate-900">{{ asset.label }}</span>
+              <span :class="['rounded-full px-2 py-1 text-xs font-semibold', runtimeAssetStateClass(asset)]">
+                {{ runtimeAssetState(asset) }}
+              </span>
+            </div>
+            <p class="mt-2 break-all text-xs text-slate-500">{{ asset.path }}</p>
+            <p v-if="asset.detail?.url" class="mt-1 break-all text-xs text-slate-400">{{ asset.detail.url }}</p>
+            <p v-if="asset.detail?.error" class="mt-2 text-xs font-medium text-amber-700">{{ asset.detail.error }}</p>
+          </li>
+        </ol>
+      </section>
+    </div>
+
     <header class="overflow-hidden rounded-[2rem] bg-white/90 p-6 shadow-xl ring-1 ring-slate-200 backdrop-blur">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -503,15 +603,17 @@ watch(locale, async () => {
 
         <div class="mt-6 space-y-3 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
           <p v-if="preparingModels" class="inline-flex items-center gap-1 font-medium text-blue-700">
-            <LoaderCircle class="h-4 w-4 animate-spin" /> Téléchargement initial des modèles…
+            <LoaderCircle class="h-4 w-4 animate-spin" /> Onboarding runtime: sidecars puis modèles…
           </p>
           <p v-if="modelPreparationError" class="font-medium text-amber-700">{{ modelPreparationError }}</p>
-          <p><strong>LLM:</strong> {{ modelStatus.llm_ready ? 'prêt' : (modelStatus.llm_model_ready ? 'modèle prêt, binaire absent' : 'téléchargement / fallback actif') }}</p>
+          <p><strong>LLM:</strong> {{ modelStatus.llm_ready ? 'prêt' : (modelStatus.llm_model_ready && !modelStatus.llm_binary_ready ? 'modèle prêt, binaire absent ou non exécutable' : 'téléchargement / fallback actif') }}</p>
           <p class="break-all"><strong>Modèle LLM:</strong> {{ modelStatus.llm_model }}</p>
+          <p v-if="modelStatus.downloads?.llm_binary?.error" class="text-amber-700">{{ modelStatus.downloads.llm_binary.error }}</p>
           <p v-if="modelStatus.downloads?.llm?.error" class="text-amber-700">{{ modelStatus.downloads.llm.error }}</p>
           <p class="break-all"><strong>llama.cpp:</strong> {{ systemProfile.llm_binary }}</p>
-          <p><strong>Image:</strong> {{ modelStatus.image_ready ? 'prêt' : (modelStatus.image_model_ready ? 'modèle prêt, binaire absent' : 'téléchargement / placeholder SVG actif') }}</p>
+          <p><strong>Image:</strong> {{ modelStatus.image_ready ? 'prêt' : (modelStatus.image_model_ready && !modelStatus.image_binary_ready ? 'modèle prêt, binaire absent ou non exécutable' : 'téléchargement / placeholder SVG actif') }}</p>
           <p class="break-all"><strong>Modèle image:</strong> {{ modelStatus.image_model }}</p>
+          <p v-if="modelStatus.downloads?.image_binary?.error" class="text-amber-700">{{ modelStatus.downloads.image_binary.error }}</p>
           <p v-if="modelStatus.downloads?.image?.error" class="text-amber-700">{{ modelStatus.downloads.image.error }}</p>
           <p class="break-all"><strong>stable-diffusion.cpp:</strong> {{ systemProfile.image_binary }}</p>
           <p><strong>{{ t('app.system.promptGuard') }}:</strong> {{ systemProfile.safety_prompt }}</p>
