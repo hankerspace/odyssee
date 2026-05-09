@@ -2,7 +2,7 @@
 
 use crate::generation::now_millis;
 use crate::i18n::{backend_messages, translate};
-use crate::models::{ArticleDto, CatalogResponse, DomainDto, SectionDto};
+use crate::models::{ArticleDto, CatalogResponse, DomainDto, SectionDto, VisitedArticleDto};
 use crate::paths::{ensure_storage, RuntimePaths};
 use crate::seeds::{ARTICLES, DOMAINS, SECTIONS};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -130,6 +130,61 @@ pub(crate) fn clear_cache(connection: &Connection) -> Result<usize, String> {
   Ok(deleted)
 }
 
+pub(crate) fn record_article_visit(connection: &Connection, article_id: &str) -> Result<(), String> {
+  let latest_visit = connection
+    .query_row("SELECT MAX(visited_at) FROM article_visits", [], |row| row.get::<_, Option<i64>>(0))
+    .map_err(|error| error.to_string())?
+    .unwrap_or_default();
+  let visited_at = (now_millis() as i64).max(latest_visit + 1);
+  connection
+    .execute(
+      "INSERT INTO article_visits (article_id, visited_at)
+      VALUES (?1, ?2)
+      ON CONFLICT(article_id) DO UPDATE SET visited_at = excluded.visited_at",
+      params![article_id, visited_at],
+    )
+    .map_err(|error| error.to_string())?;
+  log::info!("Recorded article visit: article_id='{article_id}'");
+  Ok(())
+}
+
+pub(crate) fn load_visited_articles(connection: &Connection, locale: &str, limit: usize) -> Result<Vec<VisitedArticleDto>, String> {
+  let mut statement = connection
+    .prepare(
+      "SELECT articles.id, articles.title_fr, articles.title_en, articles.summary_fr, articles.summary_en,
+        articles.questions_fr, articles.questions_en, article_visits.visited_at
+      FROM article_visits
+      INNER JOIN articles ON articles.id = article_visits.article_id
+      ORDER BY article_visits.visited_at DESC
+      LIMIT ?1",
+    )
+    .map_err(|error| error.to_string())?;
+  let rows = statement
+    .query_map(params![limit as i64], |row| {
+      let questions_fr: String = row.get(5)?;
+      let questions_en: String = row.get(6)?;
+      Ok(VisitedArticleDto {
+        article: ArticleDto {
+          id: row.get(0)?,
+          title: localized(row.get(1)?, row.get(2)?, locale),
+          summary: localized(row.get(3)?, row.get(4)?, locale),
+          questions: localized(questions_fr, questions_en, locale)
+            .lines()
+            .map(|line| line.to_string())
+            .collect(),
+        },
+        visited_at: row.get(7)?,
+      })
+    })
+    .map_err(|error| error.to_string())?;
+
+  let mut visits = Vec::new();
+  for row in rows {
+    visits.push(row.map_err(|error| error.to_string())?);
+  }
+  Ok(visits)
+}
+
 fn initialize_database(connection: &Connection) -> Result<(), String> {
   log::info!("Ensuring SQLite schema and seed data are available");
   connection
@@ -166,6 +221,11 @@ fn initialize_database(connection: &Connection) -> Result<(), String> {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS article_visits (
+        article_id TEXT PRIMARY KEY,
+        visited_at INTEGER NOT NULL,
+        FOREIGN KEY(article_id) REFERENCES articles(id)
       );",
     )
     .map_err(|error| error.to_string())?;
@@ -263,5 +323,23 @@ mod tests {
     assert_eq!(deleted, 2);
     assert!(read_cache(&connection, "text:fr:arctic-fox").expect("read text cache").is_none());
     assert!(read_cache(&connection, "image:fr:arctic-fox").expect("read image cache").is_none());
+  }
+
+  #[test]
+  fn visited_articles_are_recent_unique_and_not_cache_entries() {
+    let connection = Connection::open_in_memory().expect("open in-memory database");
+    initialize_database(&connection).expect("initialize database");
+    write_cache(&connection, "text:fr:arctic-fox", "cached text").expect("write text cache");
+
+    record_article_visit(&connection, "arctic-fox").expect("record first visit");
+    record_article_visit(&connection, "coral-reef").expect("record second visit");
+    record_article_visit(&connection, "arctic-fox").expect("record updated visit");
+    let deleted = clear_cache(&connection).expect("clear cache");
+    let visits = load_visited_articles(&connection, "fr", 10).expect("load visits");
+
+    assert_eq!(deleted, 1);
+    assert_eq!(visits.len(), 2);
+    assert_eq!(visits[0].article.id, "arctic-fox");
+    assert_eq!(visits[1].article.id, "coral-reef");
   }
 }

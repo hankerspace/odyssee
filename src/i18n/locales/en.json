@@ -37,6 +37,13 @@
     "topics": {
       "subtitle": "Theme exploration guided by the SQLite tree."
     },
+    "history": {
+      "button": "Visited pages",
+      "title": "Visited pages",
+      "subtitle": "Find cards already opened on this device.",
+      "empty": "No visited pages yet.",
+      "error": "Unable to load history: {error}"
+    },
     "actions": {
       "back": "Back",
       "goHome": "Home",

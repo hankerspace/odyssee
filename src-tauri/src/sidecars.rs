@@ -8,6 +8,8 @@ use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+const LLAMA_CONTROL_ARGS: [&str; 5] = ["--single-turn", "--no-display-prompt", "--simple-io", "-n", "420"];
+
 pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: &str) -> Result<String, String> {
   log::info!("Starting llama.cpp sidecar: binary='{}', model='{}'", paths.llm_binary.display(), paths.llm_model.display());
   let output = Command::new(&paths.llm_binary)
@@ -15,12 +17,7 @@ pub(crate) fn run_llama_sidecar(paths: &RuntimePaths, flags: &[String], prompt: 
     .arg(&paths.llm_model)
     .arg("-p")
     .arg(prompt)
-    .arg("--single-turn")
-    .arg("--no-conversation")
-    .arg("--no-display-prompt")
-    .arg("--simple-io")
-    .arg("-n")
-    .arg("420")
+    .args(LLAMA_CONTROL_ARGS)
     .args(flags)
     .stdin(Stdio::null())
     .output()
@@ -185,9 +182,14 @@ fn configure_stable_diffusion_library_path(command: &mut Command, paths: &Runtim
 
 #[cfg(test)]
 mod tests {
-  use super::{clean_llama_output, validate_generated_png};
+  use super::{clean_llama_output, validate_generated_png, LLAMA_CONTROL_ARGS};
   use std::fs;
   use std::path::PathBuf;
+
+  #[test]
+  fn llama_control_args_do_not_use_removed_conversation_argument() {
+    assert!(!LLAMA_CONTROL_ARGS.contains(&"--no-conversation"));
+  }
 
   #[test]
   fn clean_llama_output_removes_prompt_markers() {

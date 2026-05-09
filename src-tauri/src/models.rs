@@ -81,6 +81,13 @@ pub(crate) struct ArticleDto {
     pub(crate) questions: Vec<String>,
 }
 
+/// Article metadata stored in the local visit history.
+#[derive(Serialize)]
+pub(crate) struct VisitedArticleDto {
+    pub(crate) article: ArticleDto,
+    pub(crate) visited_at: i64,
+}
+
 /// Generated educational text and its provenance.
 #[derive(Serialize)]
 pub(crate) struct GeneratedArticle {

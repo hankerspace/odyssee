@@ -7,10 +7,10 @@ pub(crate) const FR_BACKEND_MESSAGES: &str = include_str!("../i18n/fr.json");
 pub(crate) const EN_BACKEND_MESSAGES: &str = include_str!("../i18n/en.json");
 
 /// Safety system instruction injected before every LLM request.
-pub(crate) const SAFETY_PROMPT: &str = "You are an offline children encyclopedia assistant for Odyssée Kids. Answer only the requested topic or question. If a detail is uncertain, say so simply. Never introduce violent, political, sexual, scary, discriminatory, advertising, or inappropriate content. Stay factual, kind, curious, and educational.";
+pub(crate) const SAFETY_PROMPT: &str = "You are the offline children encyclopedia assistant for Odyssée Kids. Treat the SYSTEM PROMPT as rules and the USER PROMPT as the only task to answer. Answer only the requested topic or question. If a detail is uncertain, say so simply. Never introduce violent, political, sexual, scary, discriminatory, advertising, or inappropriate content. Stay factual, kind, curious, and educational.";
 
 /// Visual style wrapper used for every stable-diffusion.cpp image prompt.
-pub(crate) const STYLE_WRAPPER: &str = "A bright child-safe educational illustration of [SUBJECT] only, simple encyclopedia sticker style, clean lines, friendly colors, white background, no text, no logos, no people in danger, high quality.";
+pub(crate) const STYLE_WRAPPER: &str = "Child-safe educational encyclopedia illustration. Subject: [SUBJECT]. Show only this subject, centered and instantly recognizable, with accurate simple features. Bright friendly colors, clean rounded shapes, soft natural light, uncluttered white background, sticker icon style. no text, no letters, no logos, no watermark, no extra characters, no scary or dangerous scene. High quality.";
 
 /// Placeholder replaced by the article title inside the image prompt wrapper.
 pub(crate) const IMAGE_SUBJECT_PLACEHOLDER: &str = "[SUBJECT]";
@@ -46,13 +46,13 @@ pub(crate) struct PromptMessages {
 }
 
 /// French instruction for article generation.
-pub(crate) const FR_LLM_ARTICLE_PROMPT: &str = "Réponds en français. Reste strictement centré sur le sujet et, si une question est indiquée, réponds d'abord précisément à cette question sans la reformuler ni partir vers un autre thème. Utilise uniquement le résumé fiable et des connaissances générales sûres. Varie les exemples et l'analogie pour éviter les réponses répétitives. Structure: titre court, 3 paragraphes courts, une analogie concrète. N'ajoute pas de questions à la fin.";
+pub(crate) const FR_LLM_ARTICLE_PROMPT: &str = "Réponds uniquement en français. Produis une réponse d'encyclopédie pour enfant, claire et chaleureuse. Si le USER PROMPT contient une question principale, réponds précisément à cette question dès la première phrase utile, puis ajoute seulement les explications nécessaires pour la comprendre. Ne rédige pas une fiche générale avant d'avoir traité la question. Utilise uniquement le résumé fiable et des connaissances générales sûres. Varie les exemples et l'analogie pour éviter les réponses répétitives. Structure: titre court, 3 paragraphes courts, une analogie concrète. N'ajoute pas de questions à la fin.";
 
 /// French instruction added when a child asks a focused question.
-pub(crate) const FR_LLM_CURIOSITY_FOCUS_PROMPT: &str = "Question de curiosité choisie: {question}\nCentre l'explication sur cette question.";
+pub(crate) const FR_LLM_CURIOSITY_FOCUS_PROMPT: &str = "Question principale de l'enfant: {question}\nTâche prioritaire: réponds spécifiquement à cette question, sans la remplacer par une présentation générale du sujet.";
 
 /// French instruction for follow-up question generation.
-pub(crate) const FR_LLM_QUESTIONS_PROMPT: &str = "Écris exactement trois courtes questions de curiosité en français. Chaque question doit être différente des exemples, concrète, directement liée au sujet et sûre. Varie les angles: fonctionnement, comparaison, protection ou observation. Retourne une question par ligne et aucune réponse.";
+pub(crate) const FR_LLM_QUESTIONS_PROMPT: &str = "Écris exactement trois courtes questions de curiosité en français. Chaque question doit être différente des exemples, concrète, directement liée au sujet précis et au résumé fiable, et sûre pour un enfant. Varie les angles: fonctionnement, comparaison, protection ou observation. Retourne une question par ligne et aucune réponse.";
 
 /// French instruction for subcategory generation.
 pub(crate) const FR_LLM_SUBCATEGORIES_PROMPT: &str = "Suggère exactement {count} sous-thèmes sûrs en français pour cette catégorie d'encyclopédie. Chaque libellé doit être distinct, concret, centré sur le domaine et assez large pour regrouper plusieurs sujets. Évite les synonymes, doublons et termes vagues comme Découvertes ou Général. Retourne un court libellé par ligne et aucune explication.";
@@ -85,13 +85,13 @@ pub(crate) const FR_LLM_RELIABLE_WELCOME_LABEL: &str = "Accueil fiable";
 pub(crate) const FR_LLM_EXISTING_SUBCATEGORIES_LABEL: &str = "Sous-catégories existantes";
 
 /// English instruction for article generation.
-pub(crate) const EN_LLM_ARTICLE_PROMPT: &str = "Answer in English. Stay strictly focused on the subject and, if a question is provided, answer that question first without rephrasing it or drifting to another theme. Use only the reliable summary and safe general knowledge. Vary examples and the analogy to avoid repetitive answers. Structure: short title, 3 short paragraphs, one concrete analogy. Do not add follow-up questions.";
+pub(crate) const EN_LLM_ARTICLE_PROMPT: &str = "Answer only in English. Produce a clear, warm encyclopedia answer for a child. If the USER PROMPT contains a main question, answer that exact question in the first useful sentence, then add only the explanation needed to understand it. Do not write a general article before addressing the question. Use only the reliable summary and safe general knowledge. Vary examples and the analogy to avoid repetitive answers. Structure: short title, 3 short paragraphs, one concrete analogy. Do not add follow-up questions.";
 
 /// English instruction added when a child asks a focused question.
-pub(crate) const EN_LLM_CURIOSITY_FOCUS_PROMPT: &str = "Selected curiosity question: {question}\nFocus the explanation on this question.";
+pub(crate) const EN_LLM_CURIOSITY_FOCUS_PROMPT: &str = "Child's main question: {question}\nPriority task: answer this question specifically, without replacing it with a general presentation of the subject.";
 
 /// English instruction for follow-up question generation.
-pub(crate) const EN_LLM_QUESTIONS_PROMPT: &str = "Write exactly three short curiosity questions in English. Each question must be different from the examples, concrete, directly linked to the subject, and safe. Vary the angles: how it works, comparison, protection, or observation. Return one question per line and no answers.";
+pub(crate) const EN_LLM_QUESTIONS_PROMPT: &str = "Write exactly three short curiosity questions in English. Each question must be different from the examples, concrete, directly linked to the precise subject and reliable summary, and safe for a child. Vary the angles: how it works, comparison, protection, or observation. Return one question per line and no answers.";
 
 /// English instruction for subcategory generation.
 pub(crate) const EN_LLM_SUBCATEGORIES_PROMPT: &str = "Suggest exactly {count} child-safe subthemes in English for this encyclopedia category. Each label must be distinct, concrete, centered on the domain, and broad enough to group several subjects. Avoid synonyms, duplicates, and vague terms like Discoveries or General. Return one short label per line and no explanations.";

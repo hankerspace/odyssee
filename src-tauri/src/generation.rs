@@ -8,6 +8,9 @@ use crate::i18n::{backend_messages, translate};
 use crate::models::{ArticleDto, DomainDto};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const SYSTEM_PROMPT_LABEL: &str = "SYSTEM PROMPT";
+const USER_PROMPT_LABEL: &str = "USER PROMPT";
+
 pub(crate) fn normalize_age_range(age_range: Option<&str>) -> &'static str {
   match age_range {
     Some(AGE_RANGE_3_6) => AGE_RANGE_3_6,
@@ -16,10 +19,9 @@ pub(crate) fn normalize_age_range(age_range: Option<&str>) -> &'static str {
   }
 }
 
-pub(crate) fn image_prompt(title: &str, locale: &str, age_range: &str) -> String {
+pub(crate) fn image_prompt(title: &str, _locale: &str, age_range: &str) -> String {
   log::info!("Building image prompt for title='{title}'");
-  let messages = backend_messages(locale);
-  let age_instruction = age_instruction(&messages.prompts, normalize_age_range(Some(age_range)));
+  let age_instruction = image_age_instruction(normalize_age_range(Some(age_range)));
 
   format!("{}\n{age_instruction}", STYLE_WRAPPER.replace(IMAGE_SUBJECT_PLACEHOLDER, title))
 }
@@ -40,14 +42,17 @@ pub(crate) fn build_article_prompt(
     .map(|question| format!("\n{}", translate(&prompts.curiosity_focus, &[("question", question)])))
     .unwrap_or_default();
 
-  format!(
-    "{SAFETY_PROMPT}\n\n{language_instruction}\n{age_instruction}\n\n{}: {}\n{}: {}{}",
+  let system_prompt = format!("{SAFETY_PROMPT}\n{language_instruction}\n{age_instruction}");
+  let user_prompt = format!(
+    "{}: {}\n{}: {}{}",
     prompts.article_subject_label,
     article.title,
     prompts.reliable_summary_label,
     article.summary,
     curiosity_focus
-  )
+  );
+
+  structured_prompt(&system_prompt, &user_prompt)
 }
 
 pub(crate) fn build_questions_prompt(article: &ArticleDto, locale: &str, age_range: &str) -> String {
@@ -57,15 +62,18 @@ pub(crate) fn build_questions_prompt(article: &ArticleDto, locale: &str, age_ran
   let age_instruction = age_instruction(&prompts, normalize_age_range(Some(age_range)));
   let language_instruction = prompts.questions_instruction;
 
-  format!(
-    "{SAFETY_PROMPT}\n\n{language_instruction}\n{age_instruction}\n\n{}: {}\n{}: {}\n{}: {}",
+  let system_prompt = format!("{SAFETY_PROMPT}\n{language_instruction}\n{age_instruction}");
+  let user_prompt = format!(
+    "{}: {}\n{}: {}\n{}: {}",
     prompts.article_subject_label,
     article.title,
     prompts.reliable_summary_label,
     article.summary,
     prompts.safe_examples_label,
     article.questions.join(" | ")
-  )
+  );
+
+  structured_prompt(&system_prompt, &user_prompt)
 }
 
 pub(crate) fn build_subcategories_prompt(domain: &DomainDto, locale: &str, age_range: &str) -> String {
@@ -76,15 +84,22 @@ pub(crate) fn build_subcategories_prompt(domain: &DomainDto, locale: &str, age_r
   let language_instruction = translate(&prompts.subcategories_instruction, &[("count", count.as_str())]);
   let age_instruction = age_instruction(&prompts, normalize_age_range(Some(age_range)));
 
-  format!(
-    "{SAFETY_PROMPT}\n\n{language_instruction}\n{age_instruction}\n\n{}: {}\n{}: {}\n{}: {}",
+  let system_prompt = format!("{SAFETY_PROMPT}\n{language_instruction}\n{age_instruction}");
+  let user_prompt = format!(
+    "{}: {}\n{}: {}\n{}: {}",
     prompts.category_label,
     domain.name,
     prompts.reliable_welcome_label,
     domain.welcome,
     prompts.existing_subcategories_label,
     domain.sections.iter().map(|section| section.name.as_str()).collect::<Vec<_>>().join(" | ")
-  )
+  );
+
+  structured_prompt(&system_prompt, &user_prompt)
+}
+
+fn structured_prompt(system_prompt: &str, user_prompt: &str) -> String {
+  format!("{SYSTEM_PROMPT_LABEL}:\n{system_prompt}\n\n{USER_PROMPT_LABEL}:\n{user_prompt}")
 }
 
 fn age_instruction(prompts: &PromptMessages, age_range: &str) -> &'static str {
@@ -92,6 +107,14 @@ fn age_instruction(prompts: &PromptMessages, age_range: &str) -> &'static str {
     AGE_RANGE_3_6 => prompts.age_instruction_3_6,
     AGE_RANGE_10_14 => prompts.age_instruction_10_14,
     _ => prompts.age_instruction_6_10,
+  }
+}
+
+fn image_age_instruction(age_range: &str) -> &'static str {
+  match age_range {
+    AGE_RANGE_3_6 => "For preschool children: very simple shapes, large readable subject, soft reassuring mood.",
+    AGE_RANGE_10_14 => "For older children: more accurate natural details while keeping a safe friendly style.",
+    _ => "For children aged 6 to 10: clear details, concrete visual clues, simple educational composition.",
   }
 }
 
@@ -155,8 +178,13 @@ mod tests {
       Some("Pourquoi change-t-il de couleur ?"),
     );
 
-    assert!(prompt.contains("Question de curiosité choisie: Pourquoi change-t-il de couleur ?"));
-    assert!(prompt.contains("si une question est indiquée"));
+    let user_prompt_index = prompt.find("USER PROMPT:").unwrap();
+    let question_index = prompt.find("Question principale de l'enfant: Pourquoi change-t-il de couleur ?").unwrap();
+
+    assert!(prompt.contains("SYSTEM PROMPT:"));
+    assert!(prompt.contains("Si le USER PROMPT contient une question principale"));
+    assert!(prompt.contains("Tâche prioritaire: réponds spécifiquement à cette question"));
+    assert!(question_index > user_prompt_index);
     assert!(prompt.contains("vocabulaire plus précis"));
     assert!(!prompt.contains("Questions proposées"));
   }
@@ -172,6 +200,8 @@ mod tests {
   fn questions_prompt_is_separate_from_article_content_prompt() {
     let prompt = build_questions_prompt(&sample_article(), "fr", "3-6");
 
+    assert!(prompt.contains("SYSTEM PROMPT:"));
+    assert!(prompt.contains("USER PROMPT:"));
     assert!(prompt.contains("Écris exactement trois courtes questions"));
     assert!(prompt.contains("phrases très courtes"));
     assert!(prompt.contains("Exemples sûrs"));
@@ -182,9 +212,9 @@ mod tests {
   fn article_prompt_uses_english_backend_i18n_file() {
     let prompt = build_article_prompt(&sample_article(), "en", "6-10", Some("How does it stay warm?"));
 
-    assert!(prompt.contains("Answer in English. Stay strictly focused"));
+    assert!(prompt.contains("Answer only in English"));
     assert!(prompt.contains("clear vocabulary"));
-    assert!(prompt.contains("Selected curiosity question: How does it stay warm?"));
+    assert!(prompt.contains("Child's main question: How does it stay warm?"));
     assert!(prompt.contains("Reliable summary"));
   }
 
@@ -192,6 +222,8 @@ mod tests {
   fn subcategories_prompt_uses_domain_section_count_and_diversity_rules() {
     let prompt = build_subcategories_prompt(&sample_domain(), "fr", "10-14");
 
+    assert!(prompt.contains("SYSTEM PROMPT:"));
+    assert!(prompt.contains("USER PROMPT:"));
     assert!(prompt.contains("Suggère exactement 2 sous-thèmes sûrs"));
     assert!(prompt.contains("vocabulaire plus précis"));
     assert!(prompt.contains("Sous-catégories existantes: Animaux | Océans"));
@@ -201,10 +233,11 @@ mod tests {
   fn image_prompt_stays_on_subject_and_child_safe() {
     let prompt = image_prompt("Renard polaire", "fr", "3-6");
 
-    assert!(prompt.contains("Renard polaire only"));
-    assert!(prompt.contains("child-safe educational illustration"));
-    assert!(prompt.contains("phrases très courtes"));
+    assert!(prompt.contains("Subject: Renard polaire"));
+    assert!(prompt.contains("Child-safe educational encyclopedia illustration"));
+    assert!(prompt.contains("For preschool children"));
     assert!(prompt.contains("no text"));
+    assert!(!prompt.contains("phrases très courtes"));
   }
 
   #[test]

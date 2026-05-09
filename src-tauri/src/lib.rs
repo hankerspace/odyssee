@@ -803,6 +803,7 @@ pub fn run() {
       commands::prepare_models,
       commands::clear_generation_cache,
       commands::get_catalog,
+      commands::get_visited_articles,
       commands::generate_article,
       commands::generate_questions,
       commands::generate_subcategories,

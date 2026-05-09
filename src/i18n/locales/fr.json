@@ -37,6 +37,13 @@
     "topics": {
       "subtitle": "Exploration thématique guidée par l'arborescence SQLite."
     },
+    "history": {
+      "button": "Pages visitées",
+      "title": "Pages visitées",
+      "subtitle": "Retrouve les fiches déjà ouvertes sur cet appareil.",
+      "empty": "Aucune page visitée pour le moment.",
+      "error": "Impossible de charger l'historique : {error}"
+    },
     "actions": {
       "back": "Retour",
       "goHome": "Accueil",

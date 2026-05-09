@@ -12,13 +12,13 @@ use crate::model_download::{
 use crate::models::{
     ArticleRequest, CachePurgeResult, CatalogResponse, DomainRequest, GeneratedArticle,
     GeneratedImage, GeneratedQuestions, GeneratedSubcategories, HardwareProfile,
-    ModelPreparationStatus, ModelStatus, RuntimeProfile,
+    ModelPreparationStatus, ModelStatus, RuntimeProfile, VisitedArticleDto,
 };
 use crate::paths::{ensure_storage, executable_exists, image_sidecar_ready, RuntimePaths};
 use crate::sidecars::{run_llama_sidecar, run_stable_diffusion_sidecar};
 use crate::storage::{
     clear_cache, load_article, load_catalog, load_domain_sections, normalize_locale, open_database,
-    read_cache, write_cache,
+    load_visited_articles, read_cache, record_article_visit, write_cache,
 };
 use std::fs;
 use std::path::Path;
@@ -131,6 +131,19 @@ pub(crate) async fn get_catalog(locale: Option<String>) -> Result<CatalogRespons
     .map_err(|error| error.to_string())?
 }
 
+/// Loads the most recently visited articles from the local SQLite history.
+#[tauri::command]
+pub(crate) async fn get_visited_articles(locale: Option<String>) -> Result<Vec<VisitedArticleDto>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = RuntimePaths::resolve();
+        let connection = open_database(&paths)?;
+        let language = normalize_locale(locale.as_deref());
+        load_visited_articles(&connection, language, 24)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 /// Generates child-safe educational article text with the local LLM sidecar.
 #[tauri::command]
 pub(crate) async fn generate_article(request: ArticleRequest) -> Result<GeneratedArticle, String> {
@@ -140,6 +153,7 @@ pub(crate) async fn generate_article(request: ArticleRequest) -> Result<Generate
         let language = normalize_locale(request.locale.as_deref());
         let age_range = normalize_age_range(request.age_range.as_deref());
         let article = load_article(&connection, &request.article_id, language)?;
+        record_article_visit(&connection, &article.id)?;
         let generated_questions_cache_key = format!("questions:{}:{}:{}", language, age_range, article.id);
         let generated_questions = read_cache(&connection, &generated_questions_cache_key)?.unwrap_or_default();
         let curiosity_question = request

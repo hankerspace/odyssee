@@ -75,6 +75,7 @@ const articleResult = ref(null)
 const questionsResult = ref(null)
 const subcategoriesResult = ref(null)
 const imageResult = ref(null)
+const visitedArticles = ref([])
 const selectedCuriosityQuestion = ref('')
 const articleNavigationTrail = ref([])
 const selectedAgeRange = ref('6-10')
@@ -84,6 +85,9 @@ const loadingArticle = ref(false)
 const loadingQuestions = ref(false)
 const loadingSubcategories = ref(false)
 const loadingImage = ref(false)
+const loadingHistory = ref(false)
+const historyMenuOpen = ref(false)
+const historyError = ref('')
 const preparingModels = ref(false)
 const clearingCache = ref(false)
 const modelPreparationMessage = ref('')
@@ -159,6 +163,10 @@ const articleBreadcrumbs = computed(() => {
 
 const article = computed(() => articleResult.value?.article ?? null)
 const curiosityQuestions = computed(() => questionsResult.value?.questions ?? article.value?.questions ?? [])
+const visitedArticleEntries = computed(() => visitedArticles.value.map((visit) => ({
+  ...visit,
+  target: findCatalogTarget(visit.article.id),
+})))
 const imageSource = computed(() => {
   const imagePath = imageResult.value?.image_path
 
@@ -369,6 +377,17 @@ function iconFor(iconName) {
   return iconRegistry[iconName] ?? Sparkles
 }
 
+function findCatalogTarget(articleId) {
+  for (const domain of catalog.value) {
+    const section = domain.sections.find((candidate) => candidate.article_id === articleId)
+    if (section) {
+      return { domain, section }
+    }
+  }
+
+  return null
+}
+
 function domainColor(domain) {
   return domainColors[domain.id] ?? domain.color ?? 'from-blue-400 to-indigo-500'
 }
@@ -402,6 +421,29 @@ async function selectSection(section) {
   errorMessage.value = ''
 
   await Promise.all([generateArticle(section.article_id), generateQuestions(section.article_id), generateImage(section.article_id)])
+}
+
+async function openVisitedArticle(entry) {
+  if (!entry.target || loadingArticle.value || loadingQuestions.value || loadingImage.value) {
+    return
+  }
+
+  historyMenuOpen.value = false
+  selectedDomain.value = entry.target.domain
+  selectedSection.value = entry.target.section
+  articleResult.value = null
+  questionsResult.value = null
+  subcategoriesResult.value = null
+  imageResult.value = null
+  selectedCuriosityQuestion.value = ''
+  articleNavigationTrail.value = []
+  errorMessage.value = ''
+
+  await Promise.all([
+    generateArticle(entry.target.section.article_id),
+    generateQuestions(entry.target.section.article_id),
+    generateImage(entry.target.section.article_id),
+  ])
 }
 
 function backToTopics() {
@@ -535,6 +577,30 @@ async function loadCatalog() {
   }
 }
 
+async function loadVisitedArticles(silent = false) {
+  loadingHistory.value = true
+  if (!silent) {
+    historyError.value = ''
+  }
+
+  try {
+    visitedArticles.value = await invoke('get_visited_articles', { locale: locale.value })
+  } catch (error) {
+    if (!silent) {
+      historyError.value = t('app.history.error', { error })
+    }
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+async function toggleHistoryMenu() {
+  historyMenuOpen.value = !historyMenuOpen.value
+  if (historyMenuOpen.value) {
+    await loadVisitedArticles()
+  }
+}
+
 async function generateQuestions(articleId) {
   loadingQuestions.value = true
 
@@ -579,6 +645,7 @@ async function generateArticle(articleId, curiosityQuestion = '') {
     articleResult.value = await invoke('generate_article', {
       request,
     })
+    await loadVisitedArticles(true)
   } catch (error) {
     errorMessage.value = t('app.errors.article', { error })
   } finally {
@@ -627,12 +694,14 @@ async function answerCuriosityQuestion(question) {
 onMounted(() => {
   loadSystemProfile()
   loadCatalog()
+  loadVisitedArticles(true)
 })
 
 watch(locale, async () => {
   persistLocale(locale.value)
   await loadSystemProfile()
   await loadCatalog()
+  await loadVisitedArticles(true)
 
   if (selectedSection.value) {
     await regenerateCurrentArticle()
@@ -756,6 +825,52 @@ watch(selectedAgeRange, async () => {
               </option>
             </select>
           </label>
+
+          <div class="relative">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 ring-1 ring-blue-100 hover:bg-blue-100"
+              @click="toggleHistoryMenu"
+            >
+              <BookOpen class="h-4 w-4" /> {{ t('app.history.button') }}
+            </button>
+
+            <div
+              v-if="historyMenuOpen"
+              class="absolute right-0 z-20 mt-2 w-80 rounded-3xl bg-white p-4 text-left shadow-2xl ring-1 ring-slate-200"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-bold text-slate-950">{{ t('app.history.title') }}</p>
+                  <p class="text-xs text-slate-500">{{ t('app.history.subtitle') }}</p>
+                </div>
+                <LoaderCircle v-if="loadingHistory" class="h-4 w-4 animate-spin text-blue-500" />
+              </div>
+
+              <p v-if="historyError" class="mt-3 rounded-2xl bg-amber-50 p-3 text-xs text-amber-800">
+                {{ historyError }}
+              </p>
+              <p v-else-if="!visitedArticleEntries.length && !loadingHistory" class="mt-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-500">
+                {{ t('app.history.empty') }}
+              </p>
+              <div v-else class="mt-3 space-y-2">
+                <button
+                  v-for="entry in visitedArticleEntries"
+                  :key="entry.article.id"
+                  type="button"
+                  class="block w-full rounded-2xl bg-slate-50 px-3 py-3 text-left transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  :disabled="!entry.target"
+                  @click="openVisitedArticle(entry)"
+                >
+                  <span class="block text-sm font-semibold text-slate-900">{{ entry.article.title }}</span>
+                  <span class="mt-1 line-clamp-2 block text-xs text-slate-500">{{ entry.article.summary }}</span>
+                  <span v-if="entry.target" class="mt-2 block text-xs font-medium text-blue-700">
+                    {{ entry.target.domain.name }} · {{ entry.target.section.name }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
